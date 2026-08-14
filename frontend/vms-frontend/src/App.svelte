@@ -1,5 +1,5 @@
 <script>
-  import Login from './pages/Login.svelte';
+  import Personnel from './pages/Personnel.svelte';
 </script>
 
-<Login />
+<Personnel />
