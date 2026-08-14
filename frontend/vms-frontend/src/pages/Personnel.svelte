@@ -1,7 +1,15 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, createEventDispatcher } from 'svelte';
   import Sidebar from '../components/Sidebar.svelte';
   import { getAllPersonnel, createPersonnel, deletePersonnel } from '../api/personnelApi.js';
+
+  const dispatch = createEventDispatcher();
+  export var activeTab = 'personnel';
+
+  function handleTabChange(e) {
+    activeTab = e.detail;
+    dispatch('changeTab', e.detail);
+  }
 
   let personnelList = [];
   let loading = true;
@@ -110,7 +118,7 @@
 
 <div class="flex min-h-screen bg-slate-50 text-slate-800 font-sans">
   <!-- Sidebar -->
-  <Sidebar activeTab="personnel" />
+  <Sidebar {activeTab} on:changeTab={handleTabChange} />
 
   <!-- Main Content -->
   <main class="flex-1 p-8 overflow-y-auto">

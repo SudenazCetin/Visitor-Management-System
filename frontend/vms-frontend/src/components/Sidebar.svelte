@@ -1,5 +1,13 @@
 <script>
-  export var activeTab = 'personnel';
+  import { createEventDispatcher } from 'svelte';
+
+  export var activeTab = 'dashboard';
+  const dispatch = createEventDispatcher();
+
+  function selectTab(tab) {
+    activeTab = tab;
+    dispatch('changeTab', tab);
+  }
 </script>
 
 <aside class="w-64 bg-white/95 border-r border-slate-200/90 flex flex-col justify-between shrink-0 h-screen sticky top-0 font-sans shadow-sm">
@@ -22,7 +30,7 @@
       <!-- Dashboard Tab -->
       <button
         type="button"
-        on:click={() => (activeTab = 'dashboard')}
+        on:click={() => selectTab('dashboard')}
         class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 {activeTab === 'dashboard' ? 'bg-purple-50 text-purple-900 border border-purple-200/80 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'}"
       >
         <svg class="w-5 h-5 shrink-0 {activeTab === 'dashboard' ? 'text-purple-700' : 'text-slate-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,7 +42,7 @@
       <!-- Personnel Tab -->
       <button
         type="button"
-        on:click={() => (activeTab = 'personnel')}
+        on:click={() => selectTab('personnel')}
         class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 {activeTab === 'personnel' ? 'bg-purple-50 text-purple-900 border border-purple-200/80 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'}"
       >
         <svg class="w-5 h-5 shrink-0 {activeTab === 'personnel' ? 'text-purple-700' : 'text-slate-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,7 +54,7 @@
       <!-- Reports Tab -->
       <button
         type="button"
-        on:click={() => (activeTab = 'reports')}
+        on:click={() => selectTab('reports')}
         class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 {activeTab === 'reports' ? 'bg-purple-50 text-purple-900 border border-purple-200/80 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'}"
       >
         <svg class="w-5 h-5 shrink-0 {activeTab === 'reports' ? 'text-purple-700' : 'text-slate-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
