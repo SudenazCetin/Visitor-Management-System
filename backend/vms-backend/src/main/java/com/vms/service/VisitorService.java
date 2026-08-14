@@ -28,11 +28,11 @@ public class VisitorService {
     }
 
     public List<Visitor> getAllVisitors() {
-        return visitorRepository.listAll();
+        return visitorRepository.findAllWithHost();
     }
 
     public Optional<Visitor> getVisitorById(Long id) {
-        return visitorRepository.findByIdOptional(id);
+        return visitorRepository.findByIdWithHost(id);
     }
 
     public List<Visitor> getVisitorsByHostId(Long hostId) {
@@ -66,7 +66,7 @@ public class VisitorService {
 
     @Transactional
     public Visitor checkOut(Long visitorId) {
-        Visitor visitor = visitorRepository.findByIdOptional(visitorId)
+        Visitor visitor = visitorRepository.findByIdWithHost(visitorId)
                 .orElseThrow(() -> new IllegalArgumentException("Visitor not found with id: " + visitorId));
 
         if (Boolean.FALSE.equals(visitor.getIsInside())) {
