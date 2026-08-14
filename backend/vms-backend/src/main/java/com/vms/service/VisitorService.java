@@ -23,24 +23,37 @@ public class VisitorService {
         this.personnelRepository = personnelRepository;
     }
 
+    @Transactional
     public List<Visitor> getActiveVisitors() {
-        return visitorRepository.findActiveVisitors();
+        List<Visitor> visitors = visitorRepository.findActiveVisitors();
+        visitors.forEach(v -> initializeHost(v.getHost()));
+        return visitors;
     }
 
+    @Transactional
     public List<Visitor> getAllVisitors() {
-        return visitorRepository.findAllWithHost();
+        List<Visitor> visitors = visitorRepository.findAllWithHost();
+        visitors.forEach(v -> initializeHost(v.getHost()));
+        return visitors;
     }
 
+    @Transactional
     public Optional<Visitor> getVisitorById(Long id) {
-        return visitorRepository.findByIdWithHost(id);
+        Optional<Visitor> visitorOpt = visitorRepository.findByIdWithHost(id);
+        visitorOpt.ifPresent(v -> initializeHost(v.getHost()));
+        return visitorOpt;
     }
 
     public List<Visitor> getVisitorsByHostId(Long hostId) {
-        return visitorRepository.findByHostId(hostId);
+        List<Visitor> visitors = visitorRepository.findByHostId(hostId);
+        visitors.forEach(v -> initializeHost(v.getHost()));
+        return visitors;
     }
 
     public List<Visitor> getVisitorsByDateRange(LocalDateTime start, LocalDateTime end) {
-        return visitorRepository.findByDateRange(start, end);
+        List<Visitor> visitors = visitorRepository.findByDateRange(start, end);
+        visitors.forEach(v -> initializeHost(v.getHost()));
+        return visitors;
     }
 
     public long getActiveVisitorCount() {
@@ -61,6 +74,7 @@ public class VisitorService {
         );
 
         visitorRepository.persist(visitor);
+        initializeHost(visitor.getHost());
         return visitor;
     }
 
@@ -75,7 +89,15 @@ public class VisitorService {
 
         visitor.setExitTime(LocalDateTime.now());
         visitor.setIsInside(false);
+        initializeHost(visitor.getHost());
 
         return visitor;
+    }
+
+    private void initializeHost(Personnel host) {
+        if (host != null) {
+            host.getFullName();
+            host.getDepartment();
+        }
     }
 }
