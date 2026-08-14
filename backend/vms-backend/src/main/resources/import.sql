@@ -1,0 +1,1 @@
+-- VMS Initial SQL script (Will be populated in entity/auth stages)
