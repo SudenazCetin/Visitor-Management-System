@@ -1,13 +1,18 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import Sidebar from '../components/Sidebar.svelte';
+  import ConfirmModal from '../components/ConfirmModal.svelte';
   import { authStore } from '../stores/authStore.js';
+  import { toastStore } from '../stores/toastStore.js';
   import { getAllPersonnel } from '../api/personnelApi.js';
   import { getActiveVisitors, checkInVisitor, checkOutVisitor } from '../api/visitorApi.js';
 
   const dispatch = createEventDispatcher();
 
   export var activeTab = 'dashboard';
+
+  // Mobile sidebar state
+  let isMobileOpen = false;
 
   function handleLogout() {
     authStore.logout();
@@ -29,19 +34,22 @@
   };
   let isSubmitting = false;
   let formError = '';
-  let formSuccess = '';
+
+  // Check-Out Modal State
+  let isCheckoutModalOpen = false;
+  let checkoutVisitorId = null;
+  let checkoutVisitorName = '';
+  let isCheckingOut = false;
 
   // Live Timer Ticker State
   let now = new Date();
   let timerInterval;
 
   onMount(() => {
-    // Start live clock update every 1 second for Kalış Süresi
     timerInterval = setInterval(() => {
       now = new Date();
     }, 1000);
 
-    // Initial data fetch
     loadDashboardData();
   });
 
@@ -54,7 +62,6 @@
   async function loadDashboardData() {
     pageError = '';
     
-    // Fetch Personnel for Check-In Dropdown
     loadingPersonnel = true;
     try {
       personnelList = await getAllPersonnel();
@@ -64,7 +71,6 @@
       loadingPersonnel = false;
     }
 
-    // Fetch Active Visitors
     loadingVisitors = true;
     try {
       activeVisitors = await getActiveVisitors();
@@ -81,7 +87,6 @@
   async function handleCheckIn(event) {
     event.preventDefault();
     formError = '';
-    formSuccess = '';
 
     if (!checkInForm.fullName.trim()) {
       formError = 'Lütfen ziyaretçi adı soyadı girin.';
@@ -100,42 +105,40 @@
         hostId: Number(checkInForm.hostId),
       });
 
-      // Svelte reactive update: prepend new active visitor to list without page reload
       activeVisitors = [newVisitor, ...activeVisitors];
-
-      formSuccess = `${newVisitor.fullName} için ziyaretçi girişi oluşturuldu.`;
+      toastStore.success('Ziyaretçi giriş kaydı oluşturuldu.');
       checkInForm = { fullName: '', hostId: '' };
-
-      setTimeout(() => {
-        formSuccess = '';
-      }, 4000);
     } catch (err) {
       formError = err.message || 'Ziyaretçi girişi yapılırken bir hata oluştu.';
+      toastStore.error(formError);
     } finally {
       isSubmitting = false;
     }
   }
 
-  // Handle Check-Out
-  async function handleCheckOut(id, name) {
-    if (!confirm(`${name} isimli ziyaretçinin binadan çıkışını onaylıyor musunuz?`)) {
-      return;
-    }
+  function promptCheckOut(id, name) {
+    checkoutVisitorId = id;
+    checkoutVisitorName = name;
+    isCheckoutModalOpen = true;
+  }
 
+  async function confirmCheckOut() {
+    if (!checkoutVisitorId) return;
+
+    isCheckingOut = true;
     try {
-      await checkOutVisitor(id);
-      // Svelte reactive update: remove checked-out visitor from active list instantly
-      activeVisitors = activeVisitors.filter(v => v.id !== id);
+      await checkOutVisitor(checkoutVisitorId);
+      activeVisitors = activeVisitors.filter(v => v.id !== checkoutVisitorId);
+      toastStore.success('Ziyaretçi çıkış işlemi tamamlandı.');
+      isCheckoutModalOpen = false;
     } catch (err) {
-      alert(err.message || 'Ziyaretçi çıkışı yapılırken bir hata oluştu.');
+      toastStore.error(err.message || 'Ziyaretçi çıkışı yapılırken bir hata oluştu.');
+    } finally {
+      isCheckingOut = false;
+      checkoutVisitorId = null;
     }
   }
 
-  /**
-   * Calculate live duration (Kalış Süresi) HH:mm:ss
-   * @param {string|Array} entryTimeVal - Entry timestamp from backend
-   * @param {Date} currentNow - Current timestamp ticker
-   */
   function formatDuration(entryTimeVal, currentNow) {
     if (!entryTimeVal) return '00:00:00';
 
@@ -164,9 +167,6 @@
     return `${hours}:${minutes}:${seconds}`;
   }
 
-  /**
-   * Format Entry Time (Giriş Saati) HH:mm
-   */
   function formatEntryTime(entryTimeVal) {
     if (!entryTimeVal) return '-';
 
@@ -192,18 +192,41 @@
   }
 </script>
 
+<!-- Check-Out Confirmation Modal -->
+<ConfirmModal
+  isOpen={isCheckoutModalOpen}
+  title="Ziyaretçi Çıkış Onayı"
+  message="{checkoutVisitorName} isimli ziyaretçinin binadan çıkışını onaylıyor musunuz?"
+  confirmText="Çıkış Yap"
+  loading={isCheckingOut}
+  on:confirm={confirmCheckOut}
+  on:cancel={() => (isCheckoutModalOpen = false)}
+/>
+
 <div class="flex min-h-screen bg-slate-50 text-slate-800 font-sans">
   <!-- Sidebar -->
-  <Sidebar {activeTab} on:changeTab={handleTabChange} />
+  <Sidebar {activeTab} {isMobileOpen} on:changeTab={handleTabChange} on:closeMobile={() => (isMobileOpen = false)} />
 
   <!-- Main Content -->
-  <main class="flex-1 p-8 overflow-y-auto">
+  <main class="flex-1 p-4 md:p-8 overflow-y-auto">
     <div class="max-w-7xl mx-auto space-y-6">
       
       <!-- Top Welcome Header Card -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200/90 p-6 rounded-2xl shadow-sm shadow-purple-900/5">
-        <div>
-          <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200/90 p-4 md:p-6 rounded-2xl shadow-sm shadow-purple-900/5">
+        <div class="flex items-center gap-3">
+          <!-- Mobile Hamburger Button -->
+          <button
+            type="button"
+            on:click={() => (isMobileOpen = true)}
+            class="md:hidden p-2 text-slate-500 hover:text-purple-700 hover:bg-purple-50 rounded-xl transition"
+            aria-label="Menüyü aç"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+          <div>
+          <h1 class="text-xl md:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
             <span>HOŞ GELDİNİZ, RESEPSİYONİST!</span>
             <span class="inline-flex items-center gap-1.5 text-xs px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold rounded-full">
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -211,6 +234,7 @@
             </span>
           </h1>
           <p class="text-xs text-slate-500 mt-1">Canlı ziyaretçi takibi ve hızlı giriş kayıt paneli</p>
+          </div>
         </div>
 
         <div class="flex items-center gap-4">
@@ -303,17 +327,11 @@
 
           <!-- Form Alerts -->
           {#if formError}
-            <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs">
-              {formError}
-            </div>
-          {/if}
-
-          {#if formSuccess}
-            <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs flex items-center gap-2">
-              <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+              <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
-              <span>{formSuccess}</span>
+              <span>{formError}</span>
             </div>
           {/if}
 
@@ -329,7 +347,8 @@
                 type="text"
                 bind:value={checkInForm.fullName}
                 placeholder="Örn: Mehmet Kaya"
-                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition"
+                disabled={isSubmitting}
+                class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
               />
             </div>
 
@@ -341,7 +360,7 @@
               <select
                 id="hostSelect"
                 bind:value={checkInForm.hostId}
-                disabled={loadingPersonnel}
+                disabled={loadingPersonnel || isSubmitting}
                 class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
               >
                 <option value="">Ev Sahibi Personel Seçin...</option>
@@ -367,7 +386,7 @@
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Giriş Yapılıyor...</span>
+                <span>Kaydediliyor...</span>
               {:else}
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
@@ -415,11 +434,13 @@
                 <p class="text-sm font-medium">Binadaki ziyaretçiler yükleniyor...</p>
               </div>
             {:else if activeVisitors.length === 0}
-              <div class="p-12 text-center text-slate-500 space-y-2">
-                <svg class="w-12 h-12 text-slate-300 mx-auto stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                </svg>
-                <p class="text-base font-semibold text-slate-700">Şu An Binada Aktif Ziyaretçi Yok</p>
+              <div class="p-12 text-center text-slate-500 space-y-3">
+                <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center mx-auto">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+                <p class="text-base font-semibold text-slate-800">Şu An Binada Aktif Ziyaretçi Yok</p>
                 <p class="text-xs text-slate-400">Sol taraftaki form üzerinden yeni ziyaretçi girişi oluşturabilirsiniz.</p>
               </div>
             {:else}
@@ -470,7 +491,7 @@
                         <td class="py-4 px-6 text-right">
                           <button
                             type="button"
-                            on:click={() => handleCheckOut(visitor.id, visitor.fullName)}
+                            on:click={() => promptCheckOut(visitor.id, visitor.fullName)}
                             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-lg text-xs font-semibold transition shadow-2xs"
                           >
                             <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

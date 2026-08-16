@@ -1,18 +1,23 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
   import Sidebar from '../components/Sidebar.svelte';
+  import ConfirmModal from '../components/ConfirmModal.svelte';
   import { authStore } from '../stores/authStore.js';
+  import { toastStore } from '../stores/toastStore.js';
   import { getAllUsers, createUser, deleteUser } from '../api/userApi.js';
 
   const dispatch = createEventDispatcher();
   export var activeTab = 'users';
+
+  // Mobile sidebar state
+  let isMobileOpen = false;
 
   // Data State
   let userList = [];
   let loading = true;
   let error = '';
 
-  // Modal State
+  // Create Modal State
   let isModalOpen = false;
   let isSubmitting = false;
   let modalError = '';
@@ -23,7 +28,13 @@
     role: 'RECEPTIONIST',
   };
 
-  // Check Admin Access (Default true for admin demo if no user set)
+  // Delete Confirm Modal State
+  let isDeleteModalOpen = false;
+  let deletingUserId = null;
+  let deletingUsername = '';
+  let isDeleting = false;
+
+  // Check Admin Access
   $: isAdmin = !$authStore.user || $authStore.user.role === 'ADMIN';
 
   onMount(() => {
@@ -62,35 +73,53 @@
       modalError = 'Kullanıcı adı alanı zorunludur.';
       return;
     }
+    if (formData.username.trim().length < 3) {
+      modalError = 'Kullanıcı adı en az 3 karakter olmalıdır.';
+      return;
+    }
     if (!formData.password.trim()) {
       modalError = 'Şifre alanı zorunludur.';
+      return;
+    }
+    if (formData.password.trim().length < 4) {
+      modalError = 'Şifre en az 4 karakter olmalıdır.';
       return;
     }
 
     isSubmitting = true;
     try {
       const newUser = await createUser(formData);
-      // Svelte reactive update: prepend new user to array instantly without reload
       userList = [newUser, ...userList];
+      toastStore.success('Kullanıcı başarıyla oluşturuldu.');
       closeModal();
     } catch (err) {
       modalError = err.message || 'Kullanıcı eklenirken bir hata oluştu.';
+      toastStore.error(modalError);
     } finally {
       isSubmitting = false;
     }
   }
 
-  async function handleDeleteUser(id, username) {
-    if (!confirm(`${username} kullanıcı adlı hesabı silmek istediğinize emin misiniz?`)) {
-      return;
-    }
+  function promptDeleteUser(id, username) {
+    deletingUserId = id;
+    deletingUsername = username;
+    isDeleteModalOpen = true;
+  }
 
+  async function confirmDeleteUser() {
+    if (!deletingUserId) return;
+
+    isDeleting = true;
     try {
-      await deleteUser(id);
-      // Svelte reactive update: remove deleted user from local list instantly
-      userList = userList.filter(u => u.id !== id);
+      await deleteUser(deletingUserId);
+      userList = userList.filter(u => u.id !== deletingUserId);
+      toastStore.success('Kullanıcı başarıyla silindi.');
+      isDeleteModalOpen = false;
     } catch (err) {
-      alert(err.message || 'Kullanıcı silinirken bir hata oluştu.');
+      toastStore.error(err.message || 'Kullanıcı silinirken bir hata oluştu.');
+    } finally {
+      isDeleting = false;
+      deletingUserId = null;
     }
   }
 
@@ -100,12 +129,22 @@
   }
 </script>
 
+<!-- Delete User Confirmation Modal -->
+<ConfirmModal
+  isOpen={isDeleteModalOpen}
+  title="Kullanıcıyı Sil"
+  message="{deletingUsername} kullanıcı adlı hesabı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+  loading={isDeleting}
+  on:confirm={confirmDeleteUser}
+  on:cancel={() => (isDeleteModalOpen = false)}
+/>
+
 <div class="flex min-h-screen bg-slate-50 text-slate-800 font-sans">
   <!-- Sidebar -->
-  <Sidebar {activeTab} on:changeTab={handleTabChange} />
+  <Sidebar {activeTab} {isMobileOpen} on:changeTab={handleTabChange} on:closeMobile={() => (isMobileOpen = false)} />
 
   <!-- Main Content -->
-  <main class="flex-1 p-8 overflow-y-auto">
+  <main class="flex-1 p-4 md:p-8 overflow-y-auto">
     <div class="max-w-7xl mx-auto space-y-6">
       
       {#if !isAdmin}
@@ -124,8 +163,20 @@
       {:else}
 
         <!-- Top Action Bar Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200/90 p-6 rounded-2xl shadow-sm shadow-purple-900/5">
-          <div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200/90 p-4 md:p-6 rounded-2xl shadow-sm shadow-purple-900/5">
+          <div class="flex items-center gap-3">
+            <!-- Mobile Hamburger Button -->
+            <button
+              type="button"
+              on:click={() => (isMobileOpen = true)}
+              class="md:hidden p-2 text-slate-500 hover:text-purple-700 hover:bg-purple-50 rounded-xl transition"
+              aria-label="Menüyü aç"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
+            <div>
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
               <span>SİSTEM KULLANICILARI</span>
               <span class="text-xs px-3 py-1 bg-purple-50 border border-purple-200 text-purple-700 font-bold rounded-full">
@@ -133,6 +184,7 @@
               </span>
             </h1>
             <p class="text-xs text-slate-500 mt-1">Sisteme erişimi olan yönetici ve resepsiyonist kullanıcıların yönetimi</p>
+            </div>
           </div>
 
           <button
@@ -166,12 +218,21 @@
               <p class="text-sm font-medium">Kullanıcılar yükleniyor...</p>
             </div>
           {:else if userList.length === 0}
-            <div class="p-12 text-center text-slate-500 space-y-2">
-              <svg class="w-12 h-12 text-slate-300 mx-auto stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-              </svg>
-              <p class="text-base font-semibold text-slate-700">Kayıtlı Kullanıcı Bulunamadı</p>
+            <div class="p-12 text-center text-slate-500 space-y-3">
+              <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center mx-auto">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+              </div>
+              <p class="text-base font-semibold text-slate-800">Kayıtlı Kullanıcı Bulunamadı</p>
               <p class="text-xs text-slate-400">Yeni bir kullanıcı ekleyerek sisteme erişim tanımlayabilirsiniz.</p>
+              <button
+                type="button"
+                on:click={openModal}
+                class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 text-xs font-semibold rounded-xl transition"
+              >
+                + Yeni Kullanıcı Ekle
+              </button>
             </div>
           {:else}
             <div class="overflow-x-auto">
@@ -213,7 +274,7 @@
                       <td class="py-4 px-6 text-right">
                         <button
                           type="button"
-                          on:click={() => handleDeleteUser(user.id, user.username)}
+                          on:click={() => promptDeleteUser(user.id, user.username)}
                           class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-lg text-xs font-medium transition"
                           title="Kullanıcı Sil"
                         >
@@ -263,8 +324,11 @@
 
       <!-- Modal Error Alert -->
       {#if modalError}
-        <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs">
-          {modalError}
+        <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+          <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>{modalError}</span>
         </div>
       {/if}
 
@@ -280,7 +344,8 @@
             type="text"
             bind:value={formData.username}
             placeholder="Örn: resepsiyon, admin_user"
-            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition"
+            disabled={isSubmitting}
+            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           />
         </div>
 
@@ -294,7 +359,8 @@
             type="password"
             bind:value={formData.password}
             placeholder="••••••••"
-            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition"
+            disabled={isSubmitting}
+            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           />
         </div>
 
@@ -306,7 +372,8 @@
           <select
             id="role"
             bind:value={formData.role}
-            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition"
+            disabled={isSubmitting}
+            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           >
             <option value="RECEPTIONIST">RECEPTIONIST (Resepsiyonist)</option>
             <option value="ADMIN">ADMIN (Sistem Yöneticisi)</option>
@@ -317,8 +384,9 @@
         <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
           <button
             type="button"
+            disabled={isSubmitting}
             on:click={closeModal}
-            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded-xl transition"
+            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded-xl transition disabled:opacity-50"
           >
             İptal
           </button>

@@ -1,10 +1,15 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
   import Sidebar from '../components/Sidebar.svelte';
+  import ConfirmModal from '../components/ConfirmModal.svelte';
+  import { toastStore } from '../stores/toastStore.js';
   import { getAllPersonnel, createPersonnel, deletePersonnel } from '../api/personnelApi.js';
 
   const dispatch = createEventDispatcher();
   export var activeTab = 'personnel';
+
+  // Mobile sidebar state
+  let isMobileOpen = false;
 
   function handleTabChange(e) {
     activeTab = e.detail;
@@ -17,7 +22,7 @@
   let searchQuery = '';
   let selectedDepartment = '';
 
-  // Modal State
+  // Create Modal State
   let isModalOpen = false;
   let isSubmitting = false;
   let modalError = '';
@@ -28,6 +33,12 @@
     title: '',
     email: '',
   };
+
+  // Delete Confirm Modal State
+  let isDeleteModalOpen = false;
+  let deletingId = null;
+  let deletingName = '';
+  let isDeleting = false;
 
   onMount(() => {
     loadPersonnel();
@@ -72,30 +83,46 @@
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      modalError = 'Lütfen geçerli bir e-posta adresi girin.';
+      return;
+    }
+
     isSubmitting = true;
     try {
       const newPersonnel = await createPersonnel(formData);
-      // Svelte reactive update: prepend new personnel to local list instantly
       personnelList = [newPersonnel, ...personnelList];
+      toastStore.success('Personel başarıyla eklendi.');
       closeModal();
     } catch (err) {
-      modalError = err.message || 'Personel eklenirken hata oluştu.';
+      modalError = err.message || 'Personel eklenirken bir hata oluştu.';
+      toastStore.error(modalError);
     } finally {
       isSubmitting = false;
     }
   }
 
-  async function handleDeletePersonnel(id, name) {
-    if (!confirm(`${name} isimli personeli silmek istediğinize emin misiniz?`)) {
-      return;
-    }
+  function promptDeletePersonnel(id, name) {
+    deletingId = id;
+    deletingName = name;
+    isDeleteModalOpen = true;
+  }
 
+  async function confirmDeletePersonnel() {
+    if (!deletingId) return;
+
+    isDeleting = true;
     try {
-      await deletePersonnel(id);
-      // Svelte reactive update: remove deleted personnel from array instantly without reload
-      personnelList = personnelList.filter(p => p.id !== id);
+      await deletePersonnel(deletingId);
+      personnelList = personnelList.filter(p => p.id !== deletingId);
+      toastStore.success('Personel başarıyla silindi.');
+      isDeleteModalOpen = false;
     } catch (err) {
-      alert(err.message || 'Personel silinirken hata oluştu.');
+      toastStore.error(err.message || 'Personel silinirken hata oluştu.');
+    } finally {
+      isDeleting = false;
+      deletingId = null;
     }
   }
 
@@ -116,17 +143,39 @@
   $: departments = [...new Set(personnelList.map(p => p.department))].filter(Boolean);
 </script>
 
+<!-- Delete Confirmation Modal -->
+<ConfirmModal
+  isOpen={isDeleteModalOpen}
+  title="Personeli Sil"
+  message="{deletingName} isimli personeli silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+  loading={isDeleting}
+  on:confirm={confirmDeletePersonnel}
+  on:cancel={() => (isDeleteModalOpen = false)}
+/>
+
 <div class="flex min-h-screen bg-slate-50 text-slate-800 font-sans">
   <!-- Sidebar -->
-  <Sidebar {activeTab} on:changeTab={handleTabChange} />
+  <Sidebar {activeTab} {isMobileOpen} on:changeTab={handleTabChange} on:closeMobile={() => (isMobileOpen = false)} />
 
   <!-- Main Content -->
-  <main class="flex-1 p-8 overflow-y-auto">
+  <main class="flex-1 p-4 md:p-8 overflow-y-auto">
     <div class="max-w-7xl mx-auto space-y-6">
       
       <!-- Top Action Bar Header -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200/90 p-6 rounded-2xl shadow-sm shadow-purple-900/5">
-        <div>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-slate-200/90 p-4 md:p-6 rounded-2xl shadow-sm shadow-purple-900/5">
+        <div class="flex items-center gap-3">
+          <!-- Mobile Hamburger Button -->
+          <button
+            type="button"
+            on:click={() => (isMobileOpen = true)}
+            class="md:hidden p-2 text-slate-500 hover:text-purple-700 hover:bg-purple-50 rounded-xl transition"
+            aria-label="Menüyü aç"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+          <div>
           <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
             <span>PERSONEL YÖNETİMİ</span>
             <span class="text-xs px-3 py-1 bg-purple-50 border border-purple-200 text-purple-700 font-bold rounded-full">
@@ -134,6 +183,7 @@
             </span>
           </h1>
           <p class="text-xs text-slate-500 mt-1">Sistemde kayıtlı şirket personelinin yönetimi ve listesi</p>
+          </div>
         </div>
 
         <button
@@ -198,12 +248,21 @@
             <p class="text-sm font-medium">Personeller yükleniyor...</p>
           </div>
         {:else if filteredPersonnel.length === 0}
-          <div class="p-12 text-center text-slate-500 space-y-2">
-            <svg class="w-12 h-12 text-slate-300 mx-auto stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
-            </svg>
-            <p class="text-base font-semibold text-slate-700">Kayıtlı Personel Bulunamadı</p>
+          <div class="p-12 text-center text-slate-500 space-y-3">
+            <div class="w-16 h-16 rounded-2xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center mx-auto">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+              </svg>
+            </div>
+            <p class="text-base font-semibold text-slate-800">Kayıtlı Personel Bulunamadı</p>
             <p class="text-xs text-slate-400">Arama kriterlerinizi değiştirin veya yeni bir personel ekleyin.</p>
+            <button
+              type="button"
+              on:click={openModal}
+              class="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 text-xs font-semibold rounded-xl transition"
+            >
+              + Yeni Personel Ekle
+            </button>
           </div>
         {:else}
           <div class="overflow-x-auto">
@@ -249,7 +308,7 @@
                     <td class="py-4 px-6 text-right">
                       <button
                         type="button"
-                        on:click={() => handleDeletePersonnel(personnel.id, personnel.fullName)}
+                        on:click={() => promptDeletePersonnel(personnel.id, personnel.fullName)}
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-lg text-xs font-medium transition"
                         title="Personel Sil"
                       >
@@ -297,8 +356,11 @@
 
       <!-- Modal Error Alert -->
       {#if modalError}
-        <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs">
-          {modalError}
+        <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+          <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>{modalError}</span>
         </div>
       {/if}
 
@@ -314,7 +376,8 @@
             type="text"
             bind:value={formData.fullName}
             placeholder="Örn: Ahmet Yılmaz"
-            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition"
+            disabled={isSubmitting}
+            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           />
         </div>
 
@@ -328,7 +391,8 @@
             type="text"
             bind:value={formData.department}
             placeholder="Örn: Yazılım, İnsan Kaynakları"
-            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition"
+            disabled={isSubmitting}
+            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           />
         </div>
 
@@ -342,7 +406,8 @@
             type="text"
             bind:value={formData.title}
             placeholder="Örn: Kıdemli Uzman"
-            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition"
+            disabled={isSubmitting}
+            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           />
         </div>
 
@@ -356,7 +421,8 @@
             type="email"
             bind:value={formData.email}
             placeholder="Örn: ahmet.yilmaz@firma.com"
-            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition"
+            disabled={isSubmitting}
+            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           />
         </div>
 
@@ -364,8 +430,9 @@
         <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
           <button
             type="button"
+            disabled={isSubmitting}
             on:click={closeModal}
-            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded-xl transition"
+            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded-xl transition disabled:opacity-50"
           >
             İptal
           </button>

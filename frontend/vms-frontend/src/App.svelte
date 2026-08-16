@@ -1,5 +1,6 @@
 <script>
   import { authStore } from './stores/authStore.js';
+  import ToastContainer from './components/ToastContainer.svelte';
   import Login from './pages/Login.svelte';
   import Register from './pages/Register.svelte';
   import Dashboard from './pages/Dashboard.svelte';
@@ -19,6 +20,9 @@
     currentTab = 'dashboard';
   }
 </script>
+
+<!-- Global Toast Container -->
+<ToastContainer />
 
 {#if !$authStore.isAuthenticated}
   {#if publicView === 'register'}

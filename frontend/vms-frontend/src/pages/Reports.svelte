@@ -37,6 +37,9 @@
   const dispatch = createEventDispatcher();
   export var activeTab = 'reports';
 
+  // Mobile sidebar state
+  let isMobileOpen = false;
+
   // Component Data State
   let loading = true;
   let errorMsg = '';
@@ -250,13 +253,24 @@
 
 <div class="flex h-screen bg-slate-50 font-sans text-slate-800 antialiased overflow-hidden">
   <!-- Sidebar Component -->
-  <Sidebar {activeTab} on:changeTab={(e) => dispatch('changeTab', e.detail)} />
+  <Sidebar {activeTab} {isMobileOpen} on:changeTab={(e) => { dispatch('changeTab', e.detail); }} on:closeMobile={() => (isMobileOpen = false)} />
 
   <!-- Main Content Area -->
   <div class="flex-1 flex flex-col overflow-y-auto">
     <!-- Top Header -->
-    <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-20">
+    <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-20">
       <div class="flex items-center gap-3">
+        <!-- Mobile Hamburger Button -->
+        <button
+          type="button"
+          on:click={() => (isMobileOpen = true)}
+          class="md:hidden p-2 text-slate-500 hover:text-purple-700 hover:bg-purple-50 rounded-xl transition"
+          aria-label="Menüyü aç"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
         <div class="p-2 bg-purple-100 text-purple-700 rounded-xl">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -335,7 +349,7 @@
       </div>
     </header>
 
-    <main class="p-6 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
+    <main class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
       <!-- Error Message -->
       {#if errorMsg}
         <div class="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-sm flex items-center justify-between shadow-sm">
@@ -437,8 +451,13 @@
             </div>
 
             {#if weeklyData.length === 0 || summary.totalVisitors === 0}
-              <div class="h-64 flex items-center justify-center text-center text-slate-400 text-xs">
-                Seçilen tarih aralığında ziyaret verisi bulunmuyor.
+              <div class="h-64 flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 border border-slate-200 flex items-center justify-center">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                  </svg>
+                </div>
+                <p class="text-xs font-medium">Bu tarih aralığında yeterli veri bulunmuyor.</p>
               </div>
             {:else}
               <div class="h-64 relative w-full">
@@ -457,8 +476,14 @@
             </div>
 
             {#if departmentData.length === 0}
-              <div class="h-64 flex items-center justify-center text-center text-slate-400 text-xs">
-                Seçilen tarih aralığında departman verisi bulunmuyor.
+              <div class="h-64 flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 border border-slate-200 flex items-center justify-center">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                  </svg>
+                </div>
+                <p class="text-xs font-medium">Bu tarih aralığında departman verisi bulunmuyor.</p>
               </div>
             {:else}
               <div class="h-64 relative w-full flex items-center justify-center">
@@ -479,8 +504,13 @@
           </div>
 
           {#if topPersonnel.length === 0}
-            <div class="h-56 flex items-center justify-center text-center text-slate-400 text-xs">
-              Seçilen tarih aralığında personel ziyaret verisi bulunmuyor.
+            <div class="h-56 flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
+              <div class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 border border-slate-200 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+              </div>
+              <p class="text-xs font-medium">Bu tarih aralığında personel ziyaret verisi bulunmuyor.</p>
             </div>
           {:else}
             <div class="h-56 relative w-full">
@@ -502,8 +532,14 @@
           </div>
 
           {#if visitorHistory.length === 0}
-            <div class="p-12 text-center text-slate-500 space-y-2">
-              <p class="text-sm font-medium">Bu tarih aralığında ziyaret kaydı bulunamadı.</p>
+            <div class="p-12 text-center text-slate-500 space-y-3">
+              <div class="w-14 h-14 rounded-2xl bg-slate-50 text-slate-400 border border-slate-200 flex items-center justify-center mx-auto">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <p class="text-sm font-semibold text-slate-700">Ziyaret Kaydı Bulunamadı</p>
+              <p class="text-xs text-slate-400">Bu tarih aralığında ziyaret kaydı bulunamadı.</p>
             </div>
           {:else}
             <div class="overflow-x-auto">
