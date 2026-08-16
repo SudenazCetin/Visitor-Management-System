@@ -13,9 +13,16 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Map;
 
 @Path("/api/visitors")
 @Produces(MediaType.APPLICATION_JSON)
@@ -30,7 +37,24 @@ public class VisitorResource {
     }
 
     @GET
-    public Response getAllVisitors() {
+    public Response getAllVisitors(
+            @QueryParam("startDate") String startDateStr,
+            @QueryParam("endDate") String endDateStr) {
+
+        if ((startDateStr != null && !startDateStr.isBlank()) || (endDateStr != null && !endDateStr.isBlank())) {
+            LocalDate start = parseDate(startDateStr, "startDate");
+            LocalDate end = parseDate(endDateStr, "endDate");
+            validateDates(start, end);
+
+            LocalDateTime startDateTime = start != null ? start.atStartOfDay() : LocalDateTime.of(1970, 1, 1, 0, 0);
+            LocalDateTime endDateTime = end != null ? end.atTime(LocalTime.MAX) : LocalDateTime.of(2099, 12, 31, 23, 59, 59);
+
+            List<VisitorResponse> visitors = visitorService.getVisitorsByDateRange(startDateTime, endDateTime).stream()
+                    .map(this::toResponse)
+                    .toList();
+            return Response.ok(visitors).build();
+        }
+
         List<VisitorResponse> visitors = visitorService.getAllVisitors().stream()
                 .map(this::toResponse)
                 .toList();
@@ -89,5 +113,30 @@ public class VisitorResource {
                 v.getExitTime(),
                 v.getIsInside()
         );
+    }
+
+    private LocalDate parseDate(String dateStr, String paramName) {
+        if (dateStr == null || dateStr.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dateStr);
+        } catch (DateTimeParseException e) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("message", paramName + " için geçersiz tarih formatı (YYYY-MM-DD olmalıdır)"))
+                    .build()
+            );
+        }
+    }
+
+    private void validateDates(LocalDate start, LocalDate end) {
+        if (start != null && end != null && start.isAfter(end)) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("message", "Başlangıç tarihi bitiş tarihinden sonra olamaz"))
+                    .build()
+            );
+        }
     }
 }

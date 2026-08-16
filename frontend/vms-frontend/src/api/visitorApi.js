@@ -1,11 +1,17 @@
 import { request } from './client.js';
 
 /**
- * Fetch all visitors history
+ * Fetch all visitors history with optional date range parameters
+ * @param {string} [startDate] - YYYY-MM-DD
+ * @param {string} [endDate] - YYYY-MM-DD
  * @returns {Promise<Array>} List of visitors
  */
-export async function getAllVisitors() {
-  return request('/visitors');
+export async function getAllVisitors(startDate, endDate) {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  const queryString = params.toString() ? `?${params.toString()}` : '';
+  return request(`/visitors${queryString}`);
 }
 
 /**
