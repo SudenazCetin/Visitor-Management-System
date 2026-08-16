@@ -2,7 +2,7 @@
 export const API_BASE_URL = 'http://localhost:8080/api';
 
 /**
- * Generic fetch wrapper with JSON handling, Bearer token injection, and 401/403 error handling
+ * Generic fetch wrapper with JSON handling, Bearer token injection, and user-friendly error translations
  * @param {string} endpoint - Relative endpoint path (e.g. '/personnel')
  * @param {RequestInit} [options] - Standard fetch options
  * @returns {Promise<any>} Parsed response data
@@ -44,11 +44,12 @@ export async function request(endpoint, options = {}) {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      // 401 Unauthorized: Session expired or invalid token
+      let friendlyMessage = (data && (data.message || data.details)) || null;
+
+      // Handle specific HTTP Status Codes with user-friendly Turkish messages
       if (response.status === 401) {
-        // If 401 happens on an auth endpoint, pass through the backend error message
         if (isAuthEndpoint) {
-          const loginFailError = new Error((data && data.message) || 'Kullanıcı adı veya şifre hatalı.');
+          const loginFailError = new Error(friendlyMessage || 'Kullanıcı adı veya şifre hatalı.');
           loginFailError.status = 401;
           loginFailError.data = data;
           throw loginFailError;
@@ -58,24 +59,32 @@ export async function request(endpoint, options = {}) {
         localStorage.removeItem('vms_username');
         localStorage.removeItem('vms_role');
 
-        const authError = new Error((data && data.message) || 'Oturum süreniz doldu veya geçersiz. Lütfen tekrar giriş yapın.');
+        const authError = new Error('Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
         authError.status = 401;
         authError.data = data;
-        
-        // Dispatch custom event to notify App.svelte to force re-render login
+
         window.dispatchEvent(new CustomEvent('vms-unauthorized'));
         throw authError;
       }
 
-      // 403 Forbidden: User authenticated but unauthorized for specific action
       if (response.status === 403) {
-        const forbiddenError = new Error((data && data.message) || 'Bu işlem için yetkiniz bulunmamaktadır.');
+        const forbiddenError = new Error('Bu işlem için yetkiniz bulunmuyor.');
         forbiddenError.status = 403;
         forbiddenError.data = data;
         throw forbiddenError;
       }
 
-      const error = new Error((data && (data.message || data.details)) || `HTTP ${response.status}`);
+      if (response.status === 404) {
+        friendlyMessage = friendlyMessage || 'İstenen kayıt bulunamadı.';
+      } else if (response.status === 409) {
+        friendlyMessage = friendlyMessage || 'Bu kayıt zaten mevcut.';
+      } else if (response.status === 400) {
+        friendlyMessage = friendlyMessage || 'Girilen bilgileri kontrol edin.';
+      } else if (response.status >= 500) {
+        friendlyMessage = 'Sunucu tarafında bir hata oluştu.';
+      }
+
+      const error = new Error(friendlyMessage || `HTTP ${response.status}`);
       error.status = response.status;
       error.data = data;
       throw error;
@@ -86,7 +95,7 @@ export async function request(endpoint, options = {}) {
     if (err.status !== undefined) {
       throw err;
     }
-    const networkError = new Error('Sunucuya erişilemiyor. Lütfen backend uygulamasının çalıştığından emin olun.');
+    const networkError = new Error('Sunucuya bağlanılamadı. Lütfen backend uygulamasının çalıştığından emin olun.');
     networkError.status = 0;
     throw networkError;
   }
