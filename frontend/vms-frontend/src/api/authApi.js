@@ -11,3 +11,15 @@ export async function loginUser(credentials) {
     body: credentials,
   });
 }
+
+/**
+ * Send registration request to backend auth endpoint
+ * @param {Object} userData - RegisterRequest (username, password)
+ * @returns {Promise<Object>} Response { message: "Kayıt başarılı." }
+ */
+export async function registerUser(userData) {
+  return request('/auth/register', {
+    method: 'POST',
+    body: userData,
+  });
+}

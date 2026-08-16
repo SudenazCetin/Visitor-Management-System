@@ -1,12 +1,17 @@
 <script>
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import Sidebar from '../components/Sidebar.svelte';
+  import { authStore } from '../stores/authStore.js';
   import { getAllPersonnel } from '../api/personnelApi.js';
   import { getActiveVisitors, checkInVisitor, checkOutVisitor } from '../api/visitorApi.js';
 
   const dispatch = createEventDispatcher();
 
   export var activeTab = 'dashboard';
+
+  function handleLogout() {
+    authStore.logout();
+  }
 
   // Data State
   let personnelList = [];
@@ -217,10 +222,10 @@
             <span>{now.toLocaleTimeString('tr-TR')}</span>
           </div>
 
-          <!-- Visual Logout Button -->
+          <!-- Logout Button -->
           <button
             type="button"
-            on:click={() => alert('Çıkış yap butonuna basıldı.')}
+            on:click={handleLogout}
             class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-xl border border-slate-200 transition"
           >
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

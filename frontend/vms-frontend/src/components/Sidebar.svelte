@@ -10,8 +10,12 @@
     dispatch('changeTab', tab);
   }
 
-  // Check if current user is ADMIN (Default true for admin demo if no user set)
-  $: isAdmin = !$authStore.user || $authStore.user.role === 'ADMIN';
+  function handleLogout() {
+    authStore.logout();
+  }
+
+  $: isAdmin = $authStore.user && $authStore.user.role === 'ADMIN';
+  $: currentUser = $authStore.user || { username: 'Kullanıcı', role: '-' };
 </script>
 
 <aside class="w-64 bg-white/95 border-r border-slate-200/90 flex flex-col justify-between shrink-0 h-screen sticky top-0 font-sans shadow-sm">
@@ -83,16 +87,30 @@
     </nav>
   </div>
 
-  <!-- User Footer Profile Info -->
-  <div class="p-4 border-t border-slate-200/80">
-    <div class="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl border border-slate-200/80">
-      <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
-        {$authStore.user ? $authStore.user.username.substring(0,2).toUpperCase() : 'AD'}
+  <!-- User Footer Profile & Logout -->
+  <div class="p-4 border-t border-slate-200/80 space-y-2">
+    <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/80">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
+          {currentUser.username.substring(0,2).toUpperCase()}
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs font-semibold text-slate-800 truncate">{currentUser.username}</p>
+          <p class="text-[10px] text-slate-500 truncate">{currentUser.role}</p>
+        </div>
       </div>
-      <div class="flex-1 min-w-0">
-        <p class="text-xs font-semibold text-slate-800 truncate">{$authStore.user ? $authStore.user.username : 'Admin User'}</p>
-        <p class="text-[10px] text-slate-500 truncate">{$authStore.user ? $authStore.user.role : 'ADMIN'}</p>
-      </div>
+
+      <!-- Logout Button -->
+      <button
+        type="button"
+        on:click={handleLogout}
+        class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+        title="Çıkış Yap"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+        </svg>
+      </button>
     </div>
   </div>
 </aside>

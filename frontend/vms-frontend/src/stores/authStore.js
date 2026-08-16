@@ -1,10 +1,13 @@
 import { writable } from 'svelte/store';
 
-// Initialize state from localStorage if available
-const storedUser = localStorage.getItem('vms_user') 
-  ? JSON.parse(localStorage.getItem('vms_user')) 
-  : null;
+// Initialize auth state from localStorage if available
 const storedToken = localStorage.getItem('vms_token') || null;
+const storedUsername = localStorage.getItem('vms_username') || null;
+const storedRole = localStorage.getItem('vms_role') || null;
+
+const storedUser = (storedUsername && storedRole) 
+  ? { username: storedUsername, role: storedRole } 
+  : null;
 
 const initialState = {
   user: storedUser,
@@ -20,24 +23,22 @@ function createAuthStore() {
   return {
     subscribe,
 
-    /**
-     * Set loading state
-     */
     setLoading: (isLoading) => update(s => ({ ...s, loading: isLoading, error: null })),
 
-    /**
-     * Set error message
-     */
     setError: (errorMessage) => update(s => ({ ...s, loading: false, error: errorMessage })),
 
     /**
-     * Set authenticated user session
-     * @param {Object} user - User details { username, role }
-     * @param {string} token - JWT token
+     * Store authentication session details
+     * @param {string} token - JWT token string
+     * @param {string} username - User login name
+     * @param {string} role - System role ('ADMIN' | 'RECEPTIONIST')
      */
-    loginSuccess: (user, token) => {
-      if (token) localStorage.setItem('vms_token', token);
-      if (user) localStorage.setItem('vms_user', JSON.stringify(user));
+    loginSuccess: (token, username, role) => {
+      localStorage.setItem('vms_token', token);
+      localStorage.setItem('vms_username', username);
+      localStorage.setItem('vms_role', role);
+
+      const user = { username, role };
 
       update(s => ({
         ...s,
@@ -54,7 +55,8 @@ function createAuthStore() {
      */
     logout: () => {
       localStorage.removeItem('vms_token');
-      localStorage.removeItem('vms_user');
+      localStorage.removeItem('vms_username');
+      localStorage.removeItem('vms_role');
       set({
         user: null,
         token: null,
@@ -64,11 +66,15 @@ function createAuthStore() {
       });
     },
 
-    /**
-     * Reset error state
-     */
     clearError: () => update(s => ({ ...s, error: null })),
   };
 }
 
 export const authStore = createAuthStore();
+
+// Listen to global 401 unauthorized event dispatched by client.js
+if (typeof window !== 'undefined') {
+  window.addEventListener('vms-unauthorized', () => {
+    authStore.logout();
+  });
+}

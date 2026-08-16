@@ -1,25 +1,34 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { authStore } from '../stores/authStore.js';
-  import { loginUser } from '../api/authApi.js';
+  import { registerUser } from '../api/authApi.js';
 
   const dispatch = createEventDispatcher();
 
   let username = '';
   let password = '';
+  let confirmPassword = '';
   let showPassword = false;
-  let formError = '';
 
-  function navigateToRegister() {
-    dispatch('switchToRegister');
+  let loading = false;
+  let formError = '';
+  let formSuccess = '';
+
+  function navigateToLogin() {
+    dispatch('switchToLogin');
   }
 
-  async function handleLogin(event) {
+  async function handleRegister(event) {
     event.preventDefault();
     formError = '';
+    formSuccess = '';
 
     if (!username.trim()) {
       formError = 'Kullanıcı adı boş bırakılamaz.';
+      return;
+    }
+
+    if (username.trim().length < 3) {
+      formError = 'Kullanıcı adı en az 3 karakter olmalıdır.';
       return;
     }
 
@@ -28,20 +37,35 @@
       return;
     }
 
-    authStore.setLoading(true);
+    if (password.trim().length < 6) {
+      formError = 'Şifre en az 6 karakter olmalıdır.';
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      formError = 'Şifreler eşleşmiyor.';
+      return;
+    }
+
+    loading = true;
     try {
-      const response = await loginUser({
+      await registerUser({
         username: username.trim(),
         password: password.trim(),
       });
 
-      // Save token, username, role in authStore & localStorage
-      authStore.loginSuccess(response.token, response.username, response.role);
+      formSuccess = 'Kayıt başarılı. Giriş yapabilirsiniz.';
+      username = '';
+      password = '';
+      confirmPassword = '';
+
+      setTimeout(() => {
+        navigateToLogin();
+      }, 1500);
     } catch (err) {
-      formError = err.message || 'Kullanıcı adı veya şifre hatalı.';
-      authStore.setError(formError);
+      formError = err.message || 'Kayıt oluşturulurken bir hata oluştu.';
     } finally {
-      authStore.setLoading(false);
+      loading = false;
     }
   }
 </script>
@@ -51,38 +75,47 @@
   <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-200/50 rounded-full blur-3xl pointer-events-none"></div>
   <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-200/40 rounded-full blur-3xl pointer-events-none"></div>
 
-  <!-- Login Card -->
+  <!-- Register Card -->
   <div class="w-full max-w-md bg-white border border-slate-200/90 rounded-3xl p-8 shadow-xl shadow-purple-900/5 z-10 relative">
     
     <!-- Logo & Header -->
     <div class="text-center mb-8">
       <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-700 to-indigo-800 rounded-2xl shadow-md shadow-purple-900/20 mb-4 text-white">
         <svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0l2 2m-2-2l-2 2m6-6v6m0 0l2-2m-2 2l-2-2"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
         </svg>
       </div>
 
       <h1 class="text-2xl font-bold text-slate-900 tracking-tight">VMS Pro</h1>
-      <p class="text-xs text-purple-700 font-semibold tracking-wider uppercase mt-1">Ziyaretçi Takip Sistemi</p>
+      <p class="text-xs text-purple-700 font-semibold tracking-wider uppercase mt-1">Yeni Hesap Oluştur</p>
     </div>
 
-    <!-- Form Error Alert -->
-    {#if formError || $authStore.error}
+    <!-- Form Alerts -->
+    {#if formError}
       <div class="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm flex items-center gap-3">
         <svg class="w-5 h-5 shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        <span>{formError || $authStore.error}</span>
+        <span>{formError}</span>
       </div>
     {/if}
 
-    <!-- Login Form -->
-    <form on:submit={handleLogin} class="space-y-5">
+    {#if formSuccess}
+      <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm flex items-center gap-3">
+        <svg class="w-5 h-5 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>{formSuccess}</span>
+      </div>
+    {/if}
+
+    <!-- Register Form -->
+    <form on:submit={handleRegister} class="space-y-4">
       
       <!-- Username Field -->
       <div>
-        <label for="username" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-          Kullanıcı Adı
+        <label for="reg-username" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+          Kullanıcı Adı *
         </label>
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -91,20 +124,20 @@
             </svg>
           </div>
           <input
-            id="username"
+            id="reg-username"
             type="text"
             bind:value={username}
             placeholder="Kullanıcı adınızı girin"
-            disabled={$authStore.loading}
-            class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+            disabled={loading}
+            class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           />
         </div>
       </div>
 
       <!-- Password Field -->
       <div>
-        <label for="password" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-          Şifre
+        <label for="reg-password" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+          Şifre *
         </label>
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -114,21 +147,21 @@
           </div>
           {#if showPassword}
             <input
-              id="password"
+              id="reg-password"
               type="text"
               bind:value={password}
               placeholder="••••••••"
-              disabled={$authStore.loading}
-              class="w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+              disabled={loading}
+              class="w-full pl-11 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
             />
           {:else}
             <input
-              id="password"
+              id="reg-password"
               type="password"
               bind:value={password}
               placeholder="••••••••"
-              disabled={$authStore.loading}
-              class="w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+              disabled={loading}
+              class="w-full pl-11 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
             />
           {/if}
           <button
@@ -151,20 +184,53 @@
         </div>
       </div>
 
+      <!-- Confirm Password Field -->
+      <div>
+        <label for="reg-confirm-password" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+          Şifre Tekrarı *
+        </label>
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+          </div>
+          {#if showPassword}
+            <input
+              id="reg-confirm-password"
+              type="text"
+              bind:value={confirmPassword}
+              placeholder="••••••••"
+              disabled={loading}
+              class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+            />
+          {:else}
+            <input
+              id="reg-confirm-password"
+              type="password"
+              bind:value={confirmPassword}
+              placeholder="••••••••"
+              disabled={loading}
+              class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+            />
+          {/if}
+        </div>
+      </div>
+
       <!-- Submit Button -->
       <button
         type="submit"
-        disabled={$authStore.loading}
+        disabled={loading}
         class="w-full py-3.5 px-4 bg-gradient-to-r from-purple-700 via-purple-800 to-indigo-800 hover:from-purple-800 hover:to-indigo-900 active:from-purple-900 active:to-indigo-950 text-white font-semibold text-sm rounded-xl shadow-lg shadow-purple-900/20 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
       >
-        {#if $authStore.loading}
+        {#if loading}
           <svg class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Giriş Yapılıyor...</span>
+          <span>Kayıt Oluşturuluyor...</span>
         {:else}
-          <span>Giriş Yap</span>
+          <span>Kayıt Ol</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
           </svg>
@@ -173,15 +239,15 @@
 
     </form>
 
-    <!-- Bottom link to Register -->
+    <!-- Bottom link to Login -->
     <div class="mt-6 text-center text-xs text-slate-500 border-t border-slate-100 pt-4">
-      Hesabın yok mu? 
+      Zaten hesabın var mı? 
       <button
         type="button"
-        on:click={navigateToRegister}
+        on:click={navigateToLogin}
         class="text-purple-700 font-bold hover:underline ml-1"
       >
-        Kayıt Ol
+        Giriş Yap
       </button>
     </div>
 
