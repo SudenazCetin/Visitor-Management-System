@@ -4,6 +4,7 @@ import com.vms.dto.user.UserRequest;
 import com.vms.dto.user.UserResponse;
 import com.vms.entity.User;
 import com.vms.service.UserService;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
@@ -21,6 +22,7 @@ import java.util.List;
 @Path("/api/users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@RolesAllowed("ADMIN")
 public class UserResource {
 
     private final UserService userService;

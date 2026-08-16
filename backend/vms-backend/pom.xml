@@ -67,6 +67,12 @@
             <artifactId>quarkus-smallrye-jwt</artifactId>
         </dependency>
 
+        <!-- Elytron Security Common for Bcrypt Password Hashing -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-elytron-security-common</artifactId>
+        </dependency>
+
         <!-- Quarkus Arc (CDI Dependency Injection) -->
         <dependency>
             <groupId>io.quarkus</groupId>

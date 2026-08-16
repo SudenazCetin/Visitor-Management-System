@@ -21,3 +21,8 @@ dist/
 
 # Logs
 *.log
+
+# Security & Secrets
+*.pem
+*.key
+privateKey.pem

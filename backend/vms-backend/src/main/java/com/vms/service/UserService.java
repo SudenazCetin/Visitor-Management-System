@@ -2,6 +2,7 @@ package com.vms.service;
 
 import com.vms.entity.User;
 import com.vms.repository.UserRepository;
+import io.quarkus.elytron.security.common.BcryptUtil;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -35,6 +36,9 @@ public class UserService {
         if (userRepository.existsByUsername(user.getUsername())) {
             throw new IllegalArgumentException("User with username '" + user.getUsername() + "' already exists.");
         }
+        if (user.getPassword() != null && !user.getPassword().startsWith("$2a$") && !user.getPassword().startsWith("$2b$")) {
+            user.setPassword(BcryptUtil.bcryptHash(user.getPassword()));
+        }
         userRepository.persist(user);
         return user;
     }
@@ -51,7 +55,11 @@ public class UserService {
 
         existing.setUsername(updatedUser.getUsername());
         if (updatedUser.getPassword() != null && !updatedUser.getPassword().isBlank()) {
-            existing.setPassword(updatedUser.getPassword());
+            if (!updatedUser.getPassword().startsWith("$2a$") && !updatedUser.getPassword().startsWith("$2b$")) {
+                existing.setPassword(BcryptUtil.bcryptHash(updatedUser.getPassword()));
+            } else {
+                existing.setPassword(updatedUser.getPassword());
+            }
         }
         existing.setRole(updatedUser.getRole());
 
