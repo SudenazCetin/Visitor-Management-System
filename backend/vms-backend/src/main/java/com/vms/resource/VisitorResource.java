@@ -4,6 +4,7 @@ import com.vms.dto.visitor.VisitorCheckInRequest;
 import com.vms.dto.visitor.VisitorResponse;
 import com.vms.entity.Visitor;
 import com.vms.service.VisitorService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
@@ -97,6 +98,7 @@ public class VisitorResource {
 
     @PUT
     @Path("/{id}/check-out")
+    @RunOnVirtualThread
     public Response checkOut(@PathParam("id") Long id) {
         Visitor visitor = visitorService.checkOut(id);
         return Response.ok(toResponse(visitor)).build();
