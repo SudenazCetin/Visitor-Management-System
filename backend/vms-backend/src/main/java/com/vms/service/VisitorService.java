@@ -19,11 +19,15 @@ public class VisitorService {
 
     private final VisitorRepository visitorRepository;
     private final PersonnelRepository personnelRepository;
+    private final NotificationService notificationService;
 
     @Inject
-    public VisitorService(VisitorRepository visitorRepository, PersonnelRepository personnelRepository) {
+    public VisitorService(VisitorRepository visitorRepository,
+                          PersonnelRepository personnelRepository,
+                          NotificationService notificationService) {
         this.visitorRepository = visitorRepository;
         this.personnelRepository = personnelRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -78,6 +82,15 @@ public class VisitorService {
 
         visitorRepository.persist(visitor);
         initializeHost(visitor.getHost());
+
+        if (host.getUser() != null) {
+            try {
+                notificationService.sendCheckInNotification(host.getUser(), visitor);
+            } catch (Exception e) {
+                LOG.warnf(e, "Check-in notification failed for visitor %d (main transaction unaffected)", visitor.getId());
+            }
+        }
+
         return visitor;
     }
 
@@ -95,6 +108,14 @@ public class VisitorService {
         initializeHost(visitor.getHost());
 
         simulateCheckoutAuditLog(visitor);
+
+        if (visitor.getHost() != null && visitor.getHost().getUser() != null) {
+            try {
+                notificationService.sendCheckOutNotification(visitor.getHost().getUser(), visitor);
+            } catch (Exception e) {
+                LOG.warnf(e, "Check-out notification failed for visitor %d (main transaction unaffected)", visitor.getId());
+            }
+        }
 
         return visitor;
     }
