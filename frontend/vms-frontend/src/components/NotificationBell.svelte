@@ -32,6 +32,8 @@
     if (item.actionUrl) {
       if (item.actionUrl.includes('my-visitors')) {
         dispatch('navigate', 'my-visitors');
+      } else if (item.actionUrl.includes('profile')) {
+        dispatch('navigate', 'profile');
       } else if (item.actionUrl.includes('visitors')) {
         dispatch('navigate', 'dashboard');
       }
@@ -77,7 +79,7 @@
   <button
     type="button"
     on:click|stopPropagation={toggleDropdown}
-    class="relative p-2.5 text-slate-500 hover:text-purple-700 hover:bg-purple-50 rounded-xl transition cursor-pointer"
+    class="relative p-2.5 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl transition cursor-pointer"
     title="Bildirimler"
     aria-label="Bildirimler"
   >
@@ -87,7 +89,7 @@
 
     <!-- Unread Badge -->
     {#if $notificationStore.unreadCount > 0}
-      <span class="absolute top-1.5 right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-extrabold text-white shadow-sm ring-2 ring-white animate-pulse">
+      <span class="absolute top-1.5 right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-extrabold text-white shadow-md ring-2 ring-slate-900 animate-pulse">
         {$notificationStore.unreadCount > 99 ? '99+' : $notificationStore.unreadCount}
       </span>
     {/if}
@@ -96,14 +98,14 @@
   <!-- Dropdown Panel -->
   {#if isOpen}
     <div
-      class="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      class="absolute right-0 mt-2 w-80 sm:w-96 vms-card z-50 overflow-hidden p-0 animate-in fade-in zoom-in-95 duration-150"
     >
       <!-- Header -->
-      <div class="p-4 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+      <div class="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <h3 class="text-sm font-bold text-slate-800">Bildirimler</h3>
+          <h3 class="text-xs font-bold text-white uppercase tracking-wider">Bildirimler</h3>
           {#if $notificationStore.unreadCount > 0}
-            <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
+            <span class="px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold rounded-full">
               {$notificationStore.unreadCount} Okunmamış
             </span>
           {/if}
@@ -113,7 +115,7 @@
           <button
             type="button"
             on:click={handleMarkAll}
-            class="text-xs font-semibold text-purple-700 hover:text-purple-900 hover:underline transition"
+            class="text-xs font-semibold text-purple-400 hover:text-purple-300 hover:underline transition"
           >
             Tümünü Okundu Yap
           </button>
@@ -121,7 +123,7 @@
       </div>
 
       <!-- Notification List -->
-      <div class="max-h-96 overflow-y-auto divide-y divide-slate-100">
+      <div class="max-h-96 overflow-y-auto divide-y divide-slate-800/60">
         {#if $notificationStore.items.length === 0}
           <div class="p-8 text-center text-slate-400 text-xs">
             Henüz bildiriminiz bulunmuyor.
@@ -132,13 +134,25 @@
             <!-- svelte-ignore a11y-no-static-element-interactions -->
             <div
               on:click={() => handleNotificationClick(item)}
-              class="p-4 hover:bg-purple-50/50 transition cursor-pointer flex gap-3 items-start {item.status === 'UNREAD' ? 'bg-purple-50/20 font-medium' : 'opacity-85'}"
+              class="p-4 hover:bg-purple-900/20 transition cursor-pointer flex gap-3 items-start {item.status === 'UNREAD' ? 'bg-purple-950/30 font-medium' : 'opacity-75'}"
             >
               <!-- Category Icon -->
-              <div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 {item.type === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : item.type === 'WARNING' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}">
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 {item.type === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : item.type === 'WARNING' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'}">
                 {#if item.category === 'VISITOR'}
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                  </svg>
+                {:else if item.event === 'PASSWORD_CHANGED'}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                  </svg>
+                {:else if item.event === 'PROFILE_UPDATED'}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                  </svg>
+                {:else if item.event === 'SYSTEM_MESSAGE' || item.category === 'SYSTEM'}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
                   </svg>
                 {:else}
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,15 +164,15 @@
               <!-- Details -->
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2">
-                  <p class="text-xs font-bold text-slate-800 truncate">{item.title}</p>
+                  <p class="text-xs font-bold text-white truncate">{item.title}</p>
                   <span class="text-[10px] text-slate-400 shrink-0">{formatTime(item.createdAt)}</span>
                 </div>
-                <p class="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">{item.message}</p>
+                <p class="text-xs text-slate-300 mt-1 line-clamp-2 leading-relaxed">{item.message}</p>
               </div>
 
               <!-- Unread Indicator Dot -->
               {#if item.status === 'UNREAD'}
-                <span class="w-2 h-2 rounded-full bg-purple-600 shrink-0 mt-1.5"></span>
+                <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0 mt-1.5"></span>
               {/if}
             </div>
           {/each}

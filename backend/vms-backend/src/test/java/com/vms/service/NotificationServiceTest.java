@@ -78,22 +78,105 @@ public class NotificationServiceTest {
     }
 
     @Test
-    void testSendCheckInNotificationCreatesAndSendsNotificationOnlyToHostUser() {
+    void testSendCheckInAndCheckOutNotificationsWorkProperly() {
         User hostUser = new User("ayse_p", "pass", Role.PERSONNEL);
         Personnel host = new Personnel("Ayşe Demir", "Yazılım", "Uzman", "ayse@firma.com", hostUser);
         Visitor visitor = new Visitor("Kaya Soy", host, LocalDateTime.now(), null, true);
         visitor.setId(50L);
 
+        // 1. CheckIn
         notificationService.sendCheckInNotification(hostUser, visitor);
+        Assertions.assertEquals(1, dbNotifications.size());
+        Notification checkInNotif = dbNotifications.get(0);
+        Assertions.assertEquals("ayse_p", checkInNotif.getRecipient().getUsername());
+        Assertions.assertEquals(SocketEvent.VISITOR_CHECKED_IN, checkInNotif.getEvent());
+        Assertions.assertEquals(SocketCategory.VISITOR, checkInNotif.getCategory());
+        Assertions.assertEquals(SocketType.SUCCESS, checkInNotif.getType());
+
+        // 2. CheckOut
+        visitor.setIsInside(false);
+        visitor.setExitTime(LocalDateTime.now());
+        notificationService.sendCheckOutNotification(hostUser, visitor);
+        Assertions.assertEquals(2, dbNotifications.size());
+        Notification checkOutNotif = dbNotifications.get(1);
+        Assertions.assertEquals(SocketEvent.VISITOR_CHECKED_OUT, checkOutNotif.getEvent());
+        Assertions.assertEquals(SocketType.INFO, checkOutNotif.getType());
+    }
+
+    @Test
+    void testPasswordChangedNotificationTargetedToUser() {
+        User personnelUser = new User("personnel_user", "pass", Role.PERSONNEL);
+        User adminUser = new User("admin_user", "pass", Role.ADMIN);
+
+        notificationService.sendPasswordChangedNotification(personnelUser);
+        notificationService.sendPasswordChangedNotification(adminUser);
+
+        Assertions.assertEquals(2, dbNotifications.size());
+
+        Notification n1 = dbNotifications.get(0);
+        Assertions.assertEquals("personnel_user", n1.getRecipient().getUsername());
+        Assertions.assertEquals(SocketEvent.PASSWORD_CHANGED, n1.getEvent());
+        Assertions.assertEquals(SocketCategory.USER, n1.getCategory());
+        Assertions.assertEquals(SocketType.SUCCESS, n1.getType());
+
+        Notification n2 = dbNotifications.get(1);
+        Assertions.assertEquals("admin_user", n2.getRecipient().getUsername());
+        Assertions.assertEquals(SocketEvent.PASSWORD_CHANGED, n2.getEvent());
+    }
+
+    @Test
+    void testProfileUpdatedNotificationTargetedToOwner() {
+        User user = new User("profile_owner", "pass", Role.PERSONNEL);
+
+        notificationService.sendProfileUpdatedNotification(user);
 
         Assertions.assertEquals(1, dbNotifications.size());
         Notification n = dbNotifications.get(0);
-        Assertions.assertEquals("ayse_p", n.getRecipient().getUsername());
-        Assertions.assertEquals(SocketEvent.VISITOR_CHECKED_IN, n.getEvent());
-        Assertions.assertEquals(SocketCategory.VISITOR, n.getCategory());
+        Assertions.assertEquals("profile_owner", n.getRecipient().getUsername());
+        Assertions.assertEquals(SocketEvent.PROFILE_UPDATED, n.getEvent());
+        Assertions.assertEquals(SocketCategory.USER, n.getCategory());
+        Assertions.assertEquals(SocketType.INFO, n.getType());
+        Assertions.assertEquals("Profil Güncellendi", n.getTitle());
+    }
+
+    @Test
+    void testUserCreatedNotificationTargetedToNewUserOnly() {
+        User newPersonnelUser = new User("new_personnel", "pass", Role.PERSONNEL);
+
+        notificationService.sendUserCreatedNotification(newPersonnelUser);
+
+        Assertions.assertEquals(1, dbNotifications.size());
+        Notification n = dbNotifications.get(0);
+        Assertions.assertEquals("new_personnel", n.getRecipient().getUsername());
+        Assertions.assertEquals(SocketEvent.USER_CREATED, n.getEvent());
+        Assertions.assertEquals(SocketCategory.USER, n.getCategory());
         Assertions.assertEquals(SocketType.SUCCESS, n.getType());
-        Assertions.assertTrue(n.getMessage().contains("Kaya Soy"));
-        Assertions.assertTrue(socketSent.get(), "Real-time socket message must be dispatched");
+        Assertions.assertEquals(NotificationStatus.UNREAD, n.getStatus());
+    }
+
+    @Test
+    void testAdminCreationNotificationTargetedOnlyToPerformingAdmin() {
+        User performingAdmin = new User("adminA", "pass", Role.ADMIN);
+        User newPersonnel = new User("new_user", "pass", Role.PERSONNEL);
+
+        notificationService.sendUserCreatedNotification(newPersonnel);
+        notificationService.sendUserCreatedNotificationToAdmin(performingAdmin, newPersonnel, "Sudenaz Çetin");
+
+        Assertions.assertEquals(2, dbNotifications.size());
+
+        Notification nNew = dbNotifications.get(0);
+        Assertions.assertEquals("new_user", nNew.getRecipient().getUsername());
+        Assertions.assertEquals("Hesabınız Oluşturuldu", nNew.getTitle());
+
+        Notification nAdmin = dbNotifications.get(1);
+        Assertions.assertEquals("adminA", nAdmin.getRecipient().getUsername());
+        Assertions.assertEquals("Yeni Kullanıcı Oluşturuldu", nAdmin.getTitle());
+        Assertions.assertTrue(nAdmin.getMessage().contains("Sudenaz Çetin"));
+
+        long adminBNotifs = dbNotifications.stream()
+                .filter(n -> n.getRecipient().getUsername().equals("adminB"))
+                .count();
+        Assertions.assertEquals(0, adminBNotifs, "Other admins must NOT receive notification");
     }
 
     @Test

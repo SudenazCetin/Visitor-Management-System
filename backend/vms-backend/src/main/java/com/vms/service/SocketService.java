@@ -29,31 +29,36 @@ public class SocketService {
         if (username == null || username.isBlank() || session == null) {
             return;
         }
-        userSessions.computeIfAbsent(username, k -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(session);
-        session.getUserProperties().put("username", username);
+        String key = username.trim().toLowerCase();
+        userSessions.computeIfAbsent(key, k -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(session);
+        session.getUserProperties().put("username", key);
         LOG.infof("WebSocket session registered for user: %s (Total sessions for user: %d)",
-                username, userSessions.get(username).size());
+                key, userSessions.get(key).size());
     }
 
     public void removeSession(Session session) {
         if (session == null) return;
         String username = (String) session.getUserProperties().get("username");
-        if (username != null && userSessions.containsKey(username)) {
-            Set<Session> sessions = userSessions.get(username);
-            sessions.remove(session);
-            if (sessions.isEmpty()) {
-                userSessions.remove(username);
+        if (username != null) {
+            String key = username.trim().toLowerCase();
+            if (userSessions.containsKey(key)) {
+                Set<Session> sessions = userSessions.get(key);
+                sessions.remove(session);
+                if (sessions.isEmpty()) {
+                    userSessions.remove(key);
+                }
+                LOG.infof("WebSocket session closed for user: %s", key);
             }
-            LOG.infof("WebSocket session closed for user: %s", username);
         }
     }
 
     public void sendToUser(String username, SocketMessage message) {
         if (username == null || username.isBlank()) return;
 
-        Set<Session> sessions = userSessions.get(username);
+        String key = username.trim().toLowerCase();
+        Set<Session> sessions = userSessions.get(key);
         if (sessions == null || sessions.isEmpty()) {
-            LOG.debugf("No active WebSocket session for user: %s. Message buffered in DB.", username);
+            LOG.debugf("No active WebSocket session for user: %s. Message buffered in DB.", key);
             return;
         }
 

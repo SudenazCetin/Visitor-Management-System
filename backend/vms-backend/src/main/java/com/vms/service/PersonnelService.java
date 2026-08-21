@@ -21,11 +21,15 @@ public class PersonnelService {
 
     private final PersonnelRepository personnelRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Inject
-    public PersonnelService(PersonnelRepository personnelRepository, UserRepository userRepository) {
+    public PersonnelService(PersonnelRepository personnelRepository,
+                             UserRepository userRepository,
+                             NotificationService notificationService) {
         this.personnelRepository = personnelRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     public List<Personnel> getAllPersonnel() {
@@ -40,8 +44,12 @@ public class PersonnelService {
         return personnelRepository.findByDepartment(department);
     }
 
-    @Transactional
     public Personnel createPersonnel(PersonnelRequest request) {
+        return createPersonnel(request, null);
+    }
+
+    @Transactional
+    public Personnel createPersonnel(PersonnelRequest request, String performingAdminUsername) {
         if (personnelRepository.existsByEmail(request.email())) {
             throw new WebApplicationException(
                 Response.status(Response.Status.CONFLICT)
@@ -88,6 +96,26 @@ public class PersonnelService {
         );
 
         personnelRepository.persist(personnel);
+
+        if (user != null) {
+            try {
+                notificationService.sendUserCreatedNotification(user);
+            } catch (Exception e) {
+                org.jboss.logging.Logger.getLogger(PersonnelService.class).warnf(e, "User created notification failed for user %s", user.getUsername());
+            }
+
+            if (performingAdminUsername != null && !performingAdminUsername.isBlank()) {
+                final User createdUser = user;
+                userRepository.findByUsername(performingAdminUsername.trim()).ifPresent(adminUser -> {
+                    try {
+                        notificationService.sendUserCreatedNotificationToAdmin(adminUser, createdUser, personnel.getFullName());
+                    } catch (Exception e) {
+                        org.jboss.logging.Logger.getLogger(PersonnelService.class).warnf(e, "Admin user created notification failed for performing admin %s", performingAdminUsername);
+                    }
+                });
+            }
+        }
+
         return personnel;
     }
 
@@ -105,6 +133,14 @@ public class PersonnelService {
         existing.setDepartment(updatedPersonnel.getDepartment());
         existing.setTitle(updatedPersonnel.getTitle());
         existing.setEmail(updatedPersonnel.getEmail());
+
+        if (existing.getUser() != null) {
+            try {
+                notificationService.sendProfileUpdatedNotification(existing.getUser());
+            } catch (Exception e) {
+                org.jboss.logging.Logger.getLogger(PersonnelService.class).warnf(e, "Profile update notification failed for user %s", existing.getUser().getUsername());
+            }
+        }
 
         return existing;
     }

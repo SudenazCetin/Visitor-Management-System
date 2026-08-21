@@ -88,16 +88,23 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-900 flex text-slate-100 font-sans antialiased">
+<div class="vms-app-layout flex text-slate-100 font-sans antialiased">
+  <!-- Fixed Background Image & Overlay -->
+  <div class="vms-bg-fixed">
+    <div class="vms-bg-image"></div>
+    <div class="vms-bg-overlay"></div>
+  </div>
+
   <Sidebar {activeTab} {isMobileOpen} on:closeMobile={() => (isMobileOpen = false)} on:changeTab={handleTabChange} />
 
-  <main class="flex-1 p-4 md:p-8 overflow-y-auto max-w-4xl mx-auto w-full">
+  <main class="flex-1 p-4 md:p-8 overflow-y-auto max-w-4xl mx-auto w-full z-10 space-y-6">
     <!-- Header -->
-    <header class="flex items-center justify-between gap-4 mb-8 bg-slate-800/60 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-md">
+    <header class="vms-card p-6 flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <button
+          type="button"
           on:click={() => (isMobileOpen = true)}
-          class="md:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl transition"
+          class="md:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
@@ -121,8 +128,8 @@
     {:else}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- Profile Details Card -->
-        <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md h-fit">
-          <div class="flex items-center gap-4 pb-6 border-b border-slate-700/50 mb-6">
+        <div class="vms-card p-6 h-fit space-y-6">
+          <div class="flex items-center gap-4 pb-6 border-b border-slate-800">
             <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-700 to-indigo-600 flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-purple-900/30">
               {profile.fullName ? profile.fullName.charAt(0).toUpperCase() : 'P'}
             </div>
@@ -152,17 +159,19 @@
         </div>
 
         <!-- Change Password Card -->
-        <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-md">
-          <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
-            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-            </svg>
-            <span>ŞİFRE DEĞİŞTİR</span>
-          </h2>
-          <p class="text-xs text-slate-400 mb-6">Hesap güvenliğiniz için şifrenizi periyodik olarak güncelleyin</p>
+        <div class="vms-card p-6 space-y-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+              <span>ŞİFRE DEĞİŞTİR</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Hesap güvenliğiniz için şifrenizi periyodik olarak güncelleyin</p>
+          </div>
 
           {#if passwordError}
-            <div class="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs">
+            <div class="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs">
               {passwordError}
             </div>
           {/if}
@@ -178,7 +187,7 @@
                 bind:value={passwordForm.currentPassword}
                 disabled={isSubmittingPassword}
                 placeholder="Mevcut şifreniz"
-                class="w-full px-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition disabled:opacity-50"
+                class="vms-input"
               />
             </div>
 
@@ -192,7 +201,7 @@
                 bind:value={passwordForm.newPassword}
                 disabled={isSubmittingPassword}
                 placeholder="En az 4 karakter"
-                class="w-full px-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition disabled:opacity-50"
+                class="vms-input"
               />
             </div>
 
@@ -206,14 +215,14 @@
                 bind:value={passwordForm.confirmPassword}
                 disabled={isSubmittingPassword}
                 placeholder="Yeni şifrenizi tekrar girin"
-                class="w-full px-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition disabled:opacity-50"
+                class="vms-input"
               />
             </div>
 
             <button
               type="submit"
               disabled={isSubmittingPassword}
-              class="w-full mt-2 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold text-sm rounded-xl shadow-lg shadow-purple-900/30 transition flex items-center justify-center gap-2 disabled:opacity-50"
+              class="vms-btn vms-btn-primary w-full py-3 text-sm mt-2"
             >
               {#if isSubmittingPassword}
                 <div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>

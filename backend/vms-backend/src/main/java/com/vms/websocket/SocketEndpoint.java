@@ -9,9 +9,12 @@ import jakarta.websocket.CloseReason;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
 import jakarta.websocket.OnOpen;
-import jakarta.websocket.server.PathParam;
 import jakarta.websocket.Session;
+import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
@@ -29,21 +32,43 @@ public class SocketEndpoint {
 
     @OnOpen
     public void onOpen(Session session, @PathParam("token") String token) {
-        if (token == null || token.isBlank()) {
+        String rawToken = token;
+
+        if ((rawToken == null || rawToken.isBlank()) && session.getRequestParameterMap() != null) {
+            List<String> tokens = session.getRequestParameterMap().get("token");
+            if (tokens != null && !tokens.isEmpty()) {
+                rawToken = tokens.get(0);
+            }
+        }
+
+        if (rawToken == null || rawToken.isBlank()) {
+            LOG.warn("WebSocket connection rejected: Missing JWT token");
             closeSession(session, "Missing JWT token");
             return;
         }
 
         try {
-            JsonWebToken jwt = jwtParser.parse(token);
+            if (rawToken.startsWith("Bearer ")) {
+                rawToken = rawToken.substring(7);
+            }
+            if (rawToken.contains("%")) {
+                rawToken = URLDecoder.decode(rawToken, StandardCharsets.UTF_8);
+            }
+
+            JsonWebToken jwt = jwtParser.parse(rawToken);
             String username = jwt.getName();
             if (username == null || username.isBlank()) {
                 username = jwt.getClaim("username");
             }
+            if (username == null || username.isBlank()) {
+                username = jwt.getSubject();
+            }
 
             if (username != null && !username.isBlank()) {
                 socketService.registerSession(username, session);
+                LOG.infof("WebSocket session opened & registered for user: %s", username);
             } else {
+                LOG.warn("WebSocket connection rejected: Invalid JWT claims");
                 closeSession(session, "Invalid JWT claims");
             }
         } catch (ParseException e) {
@@ -58,6 +83,7 @@ public class SocketEndpoint {
     @OnClose
     public void onClose(Session session) {
         socketService.removeSession(session);
+        LOG.info("WebSocket session closed.");
     }
 
     @OnError

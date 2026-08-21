@@ -12,6 +12,14 @@ export async function getMyActiveVisitors() {
   return await request('/me/visitors/active');
 }
 
+export async function getMyRecentVisitors(limit = 5) {
+  return await request(`/me/visitors/recent?limit=${encodeURIComponent(limit)}`);
+}
+
+export async function getMyVisitorById(id) {
+  return await request(`/me/visitors/${id}`);
+}
+
 export async function getMySummary() {
   return await request('/me/summary');
 }

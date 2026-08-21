@@ -15,4 +15,8 @@ public class UserRepository implements PanacheRepository<User> {
     public boolean existsByUsername(String username) {
         return count("username", username) > 0;
     }
+
+    public java.util.List<User> findByRole(com.vms.entity.Role role) {
+        return list("role", role);
+    }
 }

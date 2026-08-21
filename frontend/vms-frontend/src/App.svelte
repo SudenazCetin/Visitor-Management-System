@@ -10,6 +10,7 @@
   import PersonnelDashboard from './pages/PersonnelDashboard.svelte';
   import MyVisitors from './pages/MyVisitors.svelte';
   import Profile from './pages/Profile.svelte';
+  import Announcements from './pages/Announcements.svelte';
 
   let publicView = 'login';
   let currentTab = 'dashboard';
@@ -22,13 +23,13 @@
   $: if ($authStore.isAuthenticated && $authStore.user) {
     const role = $authStore.user.role;
     if (role === 'PERSONNEL') {
-      if (['dashboard', 'personnel', 'users', 'reports'].includes(currentTab)) {
+      if (['dashboard', 'personnel', 'users', 'reports', 'announcements'].includes(currentTab)) {
         currentTab = 'my-dashboard';
       }
     } else {
-      if (['my-dashboard', 'my-visitors', 'profile'].includes(currentTab)) {
+      if (['my-dashboard', 'my-visitors'].includes(currentTab)) {
         currentTab = 'dashboard';
-      } else if (role !== 'ADMIN' && currentTab === 'users') {
+      } else if (role !== 'ADMIN' && ['users', 'announcements'].includes(currentTab)) {
         currentTab = 'dashboard';
       }
     }
@@ -51,6 +52,8 @@
     <MyVisitors activeTab={currentTab} on:changeTab={handleTabChange} />
   {:else if currentTab === 'profile'}
     <Profile activeTab={currentTab} on:changeTab={handleTabChange} />
+  {:else if currentTab === 'announcements' && $authStore.user && $authStore.user.role === 'ADMIN'}
+    <Announcements activeTab={currentTab} on:changeTab={handleTabChange} />
   {:else if currentTab === 'personnel'}
     <Personnel activeTab={currentTab} on:changeTab={handleTabChange} />
   {:else if currentTab === 'users' && $authStore.user && $authStore.user.role === 'ADMIN'}

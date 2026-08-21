@@ -62,15 +62,16 @@ public class PersonnelResource {
 
     @POST
     public Response createPersonnel(@Context SecurityContext sec, @Valid PersonnelRequest request) {
-        checkNotPersonnel(sec);
-        Personnel saved = personnelService.createPersonnel(request);
+        checkAdmin(sec);
+        String performingAdminUsername = (sec != null && sec.getUserPrincipal() != null) ? sec.getUserPrincipal().getName() : null;
+        Personnel saved = personnelService.createPersonnel(request, performingAdminUsername);
         return Response.status(Response.Status.CREATED).entity(toResponse(saved)).build();
     }
 
     @PUT
     @Path("/{id}")
     public Response updatePersonnel(@Context SecurityContext sec, @PathParam("id") Long id, @Valid PersonnelRequest request) {
-        checkNotPersonnel(sec);
+        checkAdmin(sec);
         Personnel updateData = toEntity(request);
         Personnel updated = personnelService.updatePersonnel(id, updateData);
         return Response.ok(toResponse(updated)).build();
@@ -79,7 +80,7 @@ public class PersonnelResource {
     @DELETE
     @Path("/{id}")
     public Response deletePersonnel(@Context SecurityContext sec, @PathParam("id") Long id) {
-        checkNotPersonnel(sec);
+        checkAdmin(sec);
         boolean deleted = personnelService.deletePersonnel(id);
         if (deleted) {
             return Response.noContent().build();
@@ -87,11 +88,11 @@ public class PersonnelResource {
         return Response.status(Response.Status.NOT_FOUND).build();
     }
 
-    private void checkNotPersonnel(SecurityContext sec) {
-        if (sec != null && sec.isUserInRole("PERSONNEL")) {
+    private void checkAdmin(SecurityContext sec) {
+        if (sec == null || sec.getUserPrincipal() == null || !sec.isUserInRole("ADMIN")) {
             throw new WebApplicationException(
                 Response.status(Response.Status.FORBIDDEN)
-                    .entity(Map.of("message", "Personnel rolündeki kullanıcılar personel yönetimi yapamaz."))
+                    .entity(Map.of("message", "Sadece ADMIN rolündeki kullanıcılar personel yönetimi yapabilir."))
                     .build()
             );
         }

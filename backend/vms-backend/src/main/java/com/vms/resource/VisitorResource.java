@@ -109,8 +109,29 @@ public class VisitorResource {
     @RunOnVirtualThread
     public Response checkOut(@Context SecurityContext sec, @PathParam("id") Long id) {
         checkNotPersonnel(sec);
-        Visitor visitor = visitorService.checkOut(id);
-        return Response.ok(toResponse(visitor)).build();
+        try {
+            Visitor visitor = visitorService.checkOut(id);
+            return Response.ok(toResponse(visitor)).build();
+        } catch (IllegalArgumentException e) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.NOT_FOUND)
+                    .entity(Map.of("message", e.getMessage()))
+                    .build()
+            );
+        } catch (IllegalStateException e) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("message", e.getMessage()))
+                    .build()
+            );
+        }
+    }
+
+    @POST
+    @Path("/{id}/check-out")
+    @RunOnVirtualThread
+    public Response checkOutPost(@Context SecurityContext sec, @PathParam("id") Long id) {
+        return checkOut(sec, id);
     }
 
     private void checkNotPersonnel(SecurityContext sec) {

@@ -24,12 +24,22 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final SocketService socketService;
+    private final com.vms.repository.UserRepository userRepository;
 
     @Inject
+    public NotificationService(NotificationRepository notificationRepository,
+                               SocketService socketService,
+                               com.vms.repository.UserRepository userRepository) {
+        this.notificationRepository = notificationRepository;
+        this.socketService = socketService;
+        this.userRepository = userRepository;
+    }
+
     public NotificationService(NotificationRepository notificationRepository,
                                SocketService socketService) {
         this.notificationRepository = notificationRepository;
         this.socketService = socketService;
+        this.userRepository = null;
     }
 
     @Transactional
@@ -148,6 +158,123 @@ public class NotificationService {
             visitor.getId(),
             toVisitorResponse(visitor)
         );
+    }
+
+    @Transactional
+    public void sendPasswordChangedNotification(User user) {
+        if (user == null) return;
+
+        createAndSendNotification(
+            user,
+            SocketEvent.PASSWORD_CHANGED,
+            SocketCategory.USER,
+            SocketType.SUCCESS,
+            "Şifre Değiştirildi",
+            "Hesap şifreniz başarıyla değiştirildi.",
+            "/profile",
+            "USER",
+            user.getId()
+        );
+    }
+
+    @Transactional
+    public void sendUserCreatedNotification(User user) {
+        if (user == null) return;
+
+        createAndSendNotification(
+            user,
+            SocketEvent.USER_CREATED,
+            SocketCategory.USER,
+            SocketType.SUCCESS,
+            "Hesabınız Oluşturuldu",
+            "Sistem hesabınız başarıyla oluşturuldu.",
+            "/profile",
+            "USER",
+            user.getId()
+        );
+    }
+
+    @Transactional
+    public void sendUserCreatedNotificationToAdmin(User adminUser, User newUser, String personnelFullName) {
+        if (adminUser == null || newUser == null) return;
+
+        String nameInfo = (personnelFullName != null && !personnelFullName.isBlank())
+            ? personnelFullName
+            : newUser.getUsername();
+
+        String title = "Yeni Kullanıcı Oluşturuldu";
+        String message = nameInfo + " için yeni " + newUser.getRole() + " hesabı başarıyla oluşturuldu.";
+
+        createAndSendNotification(
+            adminUser,
+            SocketEvent.USER_CREATED,
+            SocketCategory.USER,
+            SocketType.SUCCESS,
+            title,
+            message,
+            "/personnel",
+            "USER",
+            newUser.getId()
+        );
+    }
+
+    @Transactional
+    public void sendProfileUpdatedNotification(User user) {
+        if (user == null) return;
+
+        createAndSendNotification(
+            user,
+            SocketEvent.PROFILE_UPDATED,
+            SocketCategory.USER,
+            SocketType.INFO,
+            "Profil Güncellendi",
+            "Profil bilgileriniz başarıyla güncellendi.",
+            "/profile",
+            "USER",
+            user.getId()
+        );
+    }
+
+    @Transactional
+    public long sendAnnouncement(String title, String message, com.vms.enums.AnnouncementTarget target) {
+        if (userRepository == null) return 0;
+
+        List<User> targetUsers;
+        if (target == null || target == com.vms.enums.AnnouncementTarget.ALL) {
+            targetUsers = userRepository.listAll();
+        } else {
+            com.vms.entity.Role targetRole = switch (target) {
+                case ADMIN -> com.vms.entity.Role.ADMIN;
+                case RECEPTIONIST -> com.vms.entity.Role.RECEPTIONIST;
+                case PERSONNEL -> com.vms.entity.Role.PERSONNEL;
+                default -> null;
+            };
+            if (targetRole != null) {
+                targetUsers = userRepository.findByRole(targetRole);
+            } else {
+                targetUsers = userRepository.listAll();
+            }
+        }
+
+        if (targetUsers == null || targetUsers.isEmpty()) {
+            return 0;
+        }
+
+        for (User recipient : targetUsers) {
+            createAndSendNotification(
+                recipient,
+                SocketEvent.SYSTEM_MESSAGE,
+                SocketCategory.SYSTEM,
+                SocketType.INFO,
+                title,
+                message,
+                null,
+                "SYSTEM",
+                null
+            );
+        }
+
+        return targetUsers.size();
     }
 
     public com.vms.dto.visitor.VisitorResponse toVisitorResponse(Visitor v) {

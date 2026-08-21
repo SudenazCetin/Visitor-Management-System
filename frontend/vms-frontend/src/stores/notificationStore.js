@@ -19,8 +19,12 @@ function createNotificationStore() {
   let socket = null;
   let reconnectTimer = null;
   let activeToken = null;
+  let loadedToken = null;
 
-  async function loadData() {
+  async function loadData(force = false) {
+    if (loading) return;
+    if (!force && activeToken && loadedToken === activeToken) return;
+
     update(s => ({ ...s, loading: true }));
     try {
       const [items, unreadRes] = await Promise.all([
@@ -28,6 +32,7 @@ function createNotificationStore() {
         getUnreadNotificationCount()
       ]);
 
+      loadedToken = activeToken;
       update(s => ({
         ...s,
         items: items || [],
@@ -42,19 +47,34 @@ function createNotificationStore() {
 
   function connectWebSocket(token) {
     if (!token) return;
+    if (activeToken === token && socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
     activeToken = token;
 
-    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-      return;
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
+    if (socket) {
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onclose = null;
+      socket.onerror = null;
+      try { socket.close(); } catch (e) {}
+      socket = null;
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//localhost:8080/ws/notifications/${encodeURIComponent(token)}`;
 
     try {
-      socket = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl);
+      socket = ws;
 
-      socket.onopen = () => {
+      ws.onopen = () => {
+        if (socket !== ws) return;
         update(s => ({ ...s, isConnected: true }));
         if (reconnectTimer) {
           clearTimeout(reconnectTimer);
@@ -62,7 +82,8 @@ function createNotificationStore() {
         }
       };
 
-      socket.onmessage = (event) => {
+      ws.onmessage = (event) => {
+        if (socket !== ws) return;
         try {
           const socketMsg = JSON.parse(event.data);
           if (!socketMsg) return;
@@ -111,17 +132,22 @@ function createNotificationStore() {
         }
       };
 
-      socket.onclose = () => {
+      ws.onclose = () => {
+        if (socket !== ws) return;
         update(s => ({ ...s, isConnected: false }));
-        // Try auto reconnect after 4 seconds if token still present
-        if (activeToken) {
-          reconnectTimer = setTimeout(() => connectWebSocket(activeToken), 4000);
+        if (activeToken && !reconnectTimer) {
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            if (activeToken) {
+              connectWebSocket(activeToken);
+            }
+          }, 4000);
         }
       };
 
-      socket.onerror = (err) => {
+      ws.onerror = (err) => {
+        if (socket !== ws) return;
         console.warn('WebSocket connection error:', err);
-        socket?.close();
       };
     } catch (err) {
       console.error('Failed to establish WebSocket connection:', err);
@@ -130,6 +156,7 @@ function createNotificationStore() {
 
   function disconnect() {
     activeToken = null;
+    loadedToken = null;
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;

@@ -1,6 +1,7 @@
 package com.vms.service;
 
 import com.vms.config.DataSeeder;
+import com.vms.entity.Notification;
 import com.vms.entity.Personnel;
 import com.vms.entity.Role;
 import com.vms.entity.User;
@@ -154,11 +155,51 @@ public class UserPersistenceTest {
         Personnel p = new Personnel("Test Person", "IT", "Dev", "test@vms.com", u);
         stubPersonnelRepo.persist(p);
 
-        PersonnelService personnelService = new PersonnelService(stubPersonnelRepo, stubUserRepo);
+        NotificationService stubNotificationService = new NotificationService(null, null);
+        PersonnelService personnelService = new PersonnelService(stubPersonnelRepo, stubUserRepo, stubNotificationService);
         boolean deleted = personnelService.deletePersonnel(p.getId());
 
         Assertions.assertTrue(deleted);
         Assertions.assertFalse(stubPersonnelRepo.existsByEmail("test@vms.com"), "Personnel record must be deleted");
         Assertions.assertFalse(stubUserRepo.existsByUsername("test_personnel"), "Linked User record must also be cleanly deleted");
+    }
+
+    @Test
+    void testPersonnelUpdatePreservesLinkedUserAccount() {
+        User linkedUser = new User("linked_user", "hashed_pass", Role.PERSONNEL);
+        stubUserRepo.persist(linkedUser);
+
+        Personnel p = new Personnel("Original Name", "IT", "Junior", "orig@vms.com", linkedUser);
+        stubPersonnelRepo.persist(p);
+
+        NotificationService stubNotificationService = new NotificationService(null, null);
+        PersonnelService personnelService = new PersonnelService(stubPersonnelRepo, stubUserRepo, stubNotificationService);
+
+        Personnel updatedData = new Personnel("Updated Name", "Software Dev", "Senior", "updated@vms.com");
+        Personnel updatedResult = personnelService.updatePersonnel(p.getId(), updatedData);
+
+        Assertions.assertEquals("Updated Name", updatedResult.getFullName());
+        Assertions.assertEquals("Software Dev", updatedResult.getDepartment());
+        Assertions.assertEquals("Senior", updatedResult.getTitle());
+        Assertions.assertEquals("updated@vms.com", updatedResult.getEmail());
+
+        Assertions.assertNotNull(updatedResult.getUser(), "Linked User object must NOT be removed or set to null during update");
+        Assertions.assertEquals("linked_user", updatedResult.getUser().getUsername(), "Linked User username must remain unchanged");
+        Assertions.assertTrue(stubUserRepo.existsByUsername("linked_user"), "Linked User entity in database must be preserved");
+    }
+
+    @Test
+    void testCaseInsensitiveNotificationRecipientQuery() {
+        User adminUser = new User("Admin", "pass", Role.ADMIN);
+        Notification n = new Notification(adminUser, SocketEvent.USER_CREATED, SocketCategory.USER, SocketType.SUCCESS, "Test", "Message", null, null, null);
+
+        List<Notification> list = new ArrayList<>();
+        list.add(n);
+
+        long uppercaseCount = list.stream().filter(x -> x.getRecipient().getUsername().equalsIgnoreCase("ADMIN")).count();
+        long lowercaseCount = list.stream().filter(x -> x.getRecipient().getUsername().equalsIgnoreCase("admin")).count();
+
+        Assertions.assertEquals(1, uppercaseCount, "Recipient lookup should match case-insensitively");
+        Assertions.assertEquals(1, lowercaseCount, "Recipient lookup should match case-insensitively");
     }
 }

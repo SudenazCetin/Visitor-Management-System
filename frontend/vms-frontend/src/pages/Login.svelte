@@ -46,30 +46,34 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans">
-  <!-- Light theme subtle ambient glows -->
-  <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-200/50 rounded-full blur-3xl pointer-events-none"></div>
-  <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-200/40 rounded-full blur-3xl pointer-events-none"></div>
+<div class="vms-app-layout min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden font-sans text-slate-100">
+  <!-- Fixed Background Image & Overlay -->
+  <div class="vms-bg-fixed">
+    <div class="vms-bg-image"></div>
+    <div class="vms-bg-overlay"></div>
+  </div>
 
   <!-- Login Card -->
-  <div class="w-full max-w-md bg-white border border-slate-200/90 rounded-3xl p-8 shadow-xl shadow-purple-900/5 z-10 relative">
+  <div class="vms-card w-full max-w-md p-8 z-10 relative space-y-6">
     
     <!-- Logo & Header -->
-    <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-700 to-indigo-800 rounded-2xl shadow-md shadow-purple-900/20 mb-4 text-white">
+    <div class="text-center space-y-3">
+      <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-800 rounded-2xl shadow-xl shadow-purple-900/40 text-white border border-purple-400/20">
         <svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0l2 2m-2-2l-2 2m6-6v6m0 0l2-2m-2 2l-2-2"></path>
         </svg>
       </div>
 
-      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">VMS Pro</h1>
-      <p class="text-xs text-purple-700 font-semibold tracking-wider uppercase mt-1">Ziyaretçi Takip Sistemi</p>
+      <div>
+        <h1 class="text-2xl font-black text-white tracking-tight">VMS Pro</h1>
+        <p class="text-xs text-purple-300 font-bold tracking-widest uppercase mt-1">Ziyaretçi Takip Sistemi</p>
+      </div>
     </div>
 
     <!-- Form Error Alert -->
     {#if formError || $authStore.error}
-      <div class="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm flex items-center gap-3">
-        <svg class="w-5 h-5 shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center gap-3">
+        <svg class="w-5 h-5 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
         <span>{formError || $authStore.error}</span>
@@ -81,7 +85,7 @@
       
       <!-- Username Field -->
       <div>
-        <label for="username" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+        <label for="username" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
           Kullanıcı Adı
         </label>
         <div class="relative">
@@ -96,14 +100,14 @@
             bind:value={username}
             placeholder="Kullanıcı adınızı girin"
             disabled={$authStore.loading}
-            class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+            class="vms-input pl-11 pr-4 py-3"
           />
         </div>
       </div>
 
       <!-- Password Field -->
       <div>
-        <label for="password" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+        <label for="password" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
           Şifre
         </label>
         <div class="relative">
@@ -119,7 +123,7 @@
               bind:value={password}
               placeholder="••••••••"
               disabled={$authStore.loading}
-              class="w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+              class="vms-input pl-11 pr-11 py-3"
             />
           {:else}
             <input
@@ -128,13 +132,13 @@
               bind:value={password}
               placeholder="••••••••"
               disabled={$authStore.loading}
-              class="w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+              class="vms-input pl-11 pr-11 py-3"
             />
           {/if}
           <button
             type="button"
             on:click={() => (showPassword = !showPassword)}
-            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition"
+            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white transition"
           >
             {#if showPassword}
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,7 +159,7 @@
       <button
         type="submit"
         disabled={$authStore.loading}
-        class="w-full py-3.5 px-4 bg-gradient-to-r from-purple-700 via-purple-800 to-indigo-800 hover:from-purple-800 hover:to-indigo-900 active:from-purple-900 active:to-indigo-950 text-white font-semibold text-sm rounded-xl shadow-lg shadow-purple-900/20 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+        class="vms-btn vms-btn-primary w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2 mt-2"
       >
         {#if $authStore.loading}
           <svg class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -174,19 +178,19 @@
     </form>
 
     <!-- Bottom link to Register -->
-    <div class="mt-6 text-center text-xs text-slate-500 border-t border-slate-100 pt-4">
+    <div class="mt-6 text-center text-xs text-slate-400 border-t border-slate-800 pt-4">
       Hesabın yok mu? 
       <button
         type="button"
         on:click={navigateToRegister}
-        class="text-purple-700 font-bold hover:underline ml-1"
+        class="text-purple-400 font-bold hover:underline ml-1"
       >
         Kayıt Ol
       </button>
     </div>
 
     <!-- Footer note -->
-    <div class="mt-4 text-center text-[10px] text-slate-400">
+    <div class="mt-4 text-center text-[10px] text-slate-500">
       Visitor Management System &copy; 2026
     </div>
 

@@ -68,7 +68,7 @@ export async function request(endpoint, options = {}) {
       }
 
       if (response.status === 403) {
-        const forbiddenError = new Error('Bu işlem için yetkiniz bulunmuyor.');
+        const forbiddenError = new Error(friendlyMessage || 'Bu işlem için yetkiniz bulunmuyor.');
         forbiddenError.status = 403;
         forbiddenError.data = data;
         throw forbiddenError;
