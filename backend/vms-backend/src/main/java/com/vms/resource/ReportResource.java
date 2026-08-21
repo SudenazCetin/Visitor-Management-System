@@ -13,8 +13,10 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -36,8 +38,10 @@ public class ReportResource {
     @GET
     @Path("/summary")
     public Response getSummary(
+            @Context SecurityContext sec,
             @QueryParam("startDate") String startDateStr,
             @QueryParam("endDate") String endDateStr) {
+        checkNotPersonnel(sec);
         LocalDate start = parseDate(startDateStr, "startDate");
         LocalDate end = parseDate(endDateStr, "endDate");
         validateDates(start, end);
@@ -49,8 +53,10 @@ public class ReportResource {
     @GET
     @Path("/weekly")
     public Response getWeeklyReport(
+            @Context SecurityContext sec,
             @QueryParam("startDate") String startDateStr,
             @QueryParam("endDate") String endDateStr) {
+        checkNotPersonnel(sec);
         LocalDate start = parseDate(startDateStr, "startDate");
         LocalDate end = parseDate(endDateStr, "endDate");
         validateDates(start, end);
@@ -62,8 +68,10 @@ public class ReportResource {
     @GET
     @Path("/top-personnel")
     public Response getTopPersonnel(
+            @Context SecurityContext sec,
             @QueryParam("startDate") String startDateStr,
             @QueryParam("endDate") String endDateStr) {
+        checkNotPersonnel(sec);
         LocalDate start = parseDate(startDateStr, "startDate");
         LocalDate end = parseDate(endDateStr, "endDate");
         validateDates(start, end);
@@ -75,14 +83,26 @@ public class ReportResource {
     @GET
     @Path("/by-department")
     public Response getDepartmentReport(
+            @Context SecurityContext sec,
             @QueryParam("startDate") String startDateStr,
             @QueryParam("endDate") String endDateStr) {
+        checkNotPersonnel(sec);
         LocalDate start = parseDate(startDateStr, "startDate");
         LocalDate end = parseDate(endDateStr, "endDate");
         validateDates(start, end);
 
         List<DepartmentReportResponse> byDepartment = reportService.getDepartmentReport(start, end);
         return Response.ok(byDepartment).build();
+    }
+
+    private void checkNotPersonnel(SecurityContext sec) {
+        if (sec != null && sec.isUserInRole("PERSONNEL")) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.FORBIDDEN)
+                    .entity(Map.of("message", "Personnel rolündeki kullanıcılar rapor ekranına erişemez."))
+                    .build()
+            );
+        }
     }
 
     private LocalDate parseDate(String dateStr, String paramName) {

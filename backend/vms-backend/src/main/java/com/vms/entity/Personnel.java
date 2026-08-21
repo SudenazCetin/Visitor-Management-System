@@ -2,9 +2,12 @@ package com.vms.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -27,6 +30,10 @@ public class Personnel {
     @Column(name = "email", unique = true, nullable = false, length = 100)
     private String email;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", unique = true, nullable = true)
+    private User user;
+
     public Personnel() {
     }
 
@@ -35,6 +42,14 @@ public class Personnel {
         this.department = department;
         this.title = title;
         this.email = email;
+    }
+
+    public Personnel(String fullName, String department, String title, String email, User user) {
+        this.fullName = fullName;
+        this.department = department;
+        this.title = title;
+        this.email = email;
+        this.user = user;
     }
 
     public Long getId() {
@@ -75,5 +90,13 @@ public class Personnel {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

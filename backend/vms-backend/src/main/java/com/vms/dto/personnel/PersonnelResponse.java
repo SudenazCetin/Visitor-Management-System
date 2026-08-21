@@ -5,5 +5,7 @@ public record PersonnelResponse(
     String fullName,
     String department,
     String title,
-    String email
+    String email,
+    Boolean hasAccount,
+    String username
 ) {}

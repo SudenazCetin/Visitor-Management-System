@@ -32,6 +32,9 @@
     department: '',
     title: '',
     email: '',
+    createAccount: false,
+    username: '',
+    password: '',
   };
 
   // Delete Confirm Modal State
@@ -57,7 +60,15 @@
   }
 
   function openModal() {
-    formData = { fullName: '', department: '', title: '', email: '' };
+    formData = {
+      fullName: '',
+      department: '',
+      title: '',
+      email: '',
+      createAccount: false,
+      username: '',
+      password: '',
+    };
     modalError = '';
     isModalOpen = true;
   }
@@ -89,9 +100,30 @@
       return;
     }
 
+    if (formData.createAccount) {
+      if (!formData.username.trim()) {
+        modalError = 'Kullanıcı adı alanı zorunludur.';
+        return;
+      }
+      if (!formData.password.trim()) {
+        modalError = 'Geçici şifre alanı zorunludur.';
+        return;
+      }
+    }
+
     isSubmitting = true;
     try {
-      const newPersonnel = await createPersonnel(formData);
+      const payload = {
+        fullName: formData.fullName.trim(),
+        department: formData.department.trim(),
+        title: formData.title.trim(),
+        email: formData.email.trim(),
+        createAccount: formData.createAccount,
+        username: formData.createAccount ? formData.username.trim() : null,
+        password: formData.createAccount ? formData.password.trim() : null,
+      };
+
+      const newPersonnel = await createPersonnel(payload);
       personnelList = [newPersonnel, ...personnelList];
       toastStore.success('Personel başarıyla eklendi.');
       closeModal();
@@ -424,6 +456,51 @@
             disabled={isSubmitting}
             class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:bg-white focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
           />
+        </div>
+
+        <!-- Sistem Hesabı Oluştur Seçeneği -->
+        <div class="pt-2 border-t border-slate-100">
+          <label class="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              bind:checked={formData.createAccount}
+              disabled={isSubmitting}
+              class="w-4 h-4 text-purple-700 rounded border-slate-300 focus:ring-purple-600 transition disabled:opacity-50"
+            />
+            <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Sistem Hesabı Oluştur (Personnel Role)</span>
+          </label>
+
+          {#if formData.createAccount}
+            <div class="mt-3 p-3.5 bg-purple-50/60 border border-purple-100 rounded-xl space-y-3">
+              <div>
+                <label for="username" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Kullanıcı Adı *
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  bind:value={formData.username}
+                  placeholder="Örn: ahmet.yilmaz"
+                  disabled={isSubmitting}
+                  class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+                />
+              </div>
+
+              <div>
+                <label for="password" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Geçici Şifre *
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  bind:value={formData.password}
+                  placeholder="Geçici giriş şifresi"
+                  disabled={isSubmitting}
+                  class="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition disabled:opacity-50"
+                />
+              </div>
+            </div>
+          {/if}
         </div>
 
         <!-- Modal Actions -->

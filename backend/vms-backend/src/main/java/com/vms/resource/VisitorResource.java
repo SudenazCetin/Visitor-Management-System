@@ -16,8 +16,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -39,8 +41,10 @@ public class VisitorResource {
 
     @GET
     public Response getAllVisitors(
+            @Context SecurityContext sec,
             @QueryParam("startDate") String startDateStr,
             @QueryParam("endDate") String endDateStr) {
+        checkNotPersonnel(sec);
 
         if ((startDateStr != null && !startDateStr.isBlank()) || (endDateStr != null && !endDateStr.isBlank())) {
             LocalDate start = parseDate(startDateStr, "startDate");
@@ -64,7 +68,8 @@ public class VisitorResource {
 
     @GET
     @Path("/active")
-    public Response getActiveVisitors() {
+    public Response getActiveVisitors(@Context SecurityContext sec) {
+        checkNotPersonnel(sec);
         List<VisitorResponse> activeVisitors = visitorService.getActiveVisitors().stream()
                 .map(this::toResponse)
                 .toList();
@@ -73,7 +78,8 @@ public class VisitorResource {
 
     @GET
     @Path("/{id}")
-    public Response getVisitorById(@PathParam("id") Long id) {
+    public Response getVisitorById(@Context SecurityContext sec, @PathParam("id") Long id) {
+        checkNotPersonnel(sec);
         return visitorService.getVisitorById(id)
                 .map(this::toResponse)
                 .map(response -> Response.ok(response).build())
@@ -82,7 +88,8 @@ public class VisitorResource {
 
     @GET
     @Path("/host/{hostId}")
-    public Response getVisitorsByHostId(@PathParam("hostId") Long hostId) {
+    public Response getVisitorsByHostId(@Context SecurityContext sec, @PathParam("hostId") Long hostId) {
+        checkNotPersonnel(sec);
         List<VisitorResponse> visitors = visitorService.getVisitorsByHostId(hostId).stream()
                 .map(this::toResponse)
                 .toList();
@@ -91,7 +98,8 @@ public class VisitorResource {
 
     @POST
     @Path("/check-in")
-    public Response checkIn(@Valid VisitorCheckInRequest request) {
+    public Response checkIn(@Context SecurityContext sec, @Valid VisitorCheckInRequest request) {
+        checkNotPersonnel(sec);
         Visitor visitor = visitorService.checkIn(request.fullName(), request.hostId());
         return Response.status(Response.Status.CREATED).entity(toResponse(visitor)).build();
     }
@@ -99,9 +107,20 @@ public class VisitorResource {
     @PUT
     @Path("/{id}/check-out")
     @RunOnVirtualThread
-    public Response checkOut(@PathParam("id") Long id) {
+    public Response checkOut(@Context SecurityContext sec, @PathParam("id") Long id) {
+        checkNotPersonnel(sec);
         Visitor visitor = visitorService.checkOut(id);
         return Response.ok(toResponse(visitor)).build();
+    }
+
+    private void checkNotPersonnel(SecurityContext sec) {
+        if (sec != null && sec.isUserInRole("PERSONNEL")) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.FORBIDDEN)
+                    .entity(Map.of("message", "Personnel rolündeki kullanıcılar bu işlemi yapamaz."))
+                    .build()
+            );
+        }
     }
 
     private VisitorResponse toResponse(Visitor v) {

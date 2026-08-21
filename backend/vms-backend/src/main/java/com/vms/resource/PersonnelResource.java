@@ -15,9 +15,13 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import java.util.List;
+import java.util.Map;
 
 @Path("/api/personnel")
 @Produces(MediaType.APPLICATION_JSON)
@@ -57,15 +61,16 @@ public class PersonnelResource {
     }
 
     @POST
-    public Response createPersonnel(@Valid PersonnelRequest request) {
-        Personnel newPersonnel = toEntity(request);
-        Personnel saved = personnelService.createPersonnel(newPersonnel);
+    public Response createPersonnel(@Context SecurityContext sec, @Valid PersonnelRequest request) {
+        checkNotPersonnel(sec);
+        Personnel saved = personnelService.createPersonnel(request);
         return Response.status(Response.Status.CREATED).entity(toResponse(saved)).build();
     }
 
     @PUT
     @Path("/{id}")
-    public Response updatePersonnel(@PathParam("id") Long id, @Valid PersonnelRequest request) {
+    public Response updatePersonnel(@Context SecurityContext sec, @PathParam("id") Long id, @Valid PersonnelRequest request) {
+        checkNotPersonnel(sec);
         Personnel updateData = toEntity(request);
         Personnel updated = personnelService.updatePersonnel(id, updateData);
         return Response.ok(toResponse(updated)).build();
@@ -73,7 +78,8 @@ public class PersonnelResource {
 
     @DELETE
     @Path("/{id}")
-    public Response deletePersonnel(@PathParam("id") Long id) {
+    public Response deletePersonnel(@Context SecurityContext sec, @PathParam("id") Long id) {
+        checkNotPersonnel(sec);
         boolean deleted = personnelService.deletePersonnel(id);
         if (deleted) {
             return Response.noContent().build();
@@ -81,13 +87,27 @@ public class PersonnelResource {
         return Response.status(Response.Status.NOT_FOUND).build();
     }
 
+    private void checkNotPersonnel(SecurityContext sec) {
+        if (sec != null && sec.isUserInRole("PERSONNEL")) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.FORBIDDEN)
+                    .entity(Map.of("message", "Personnel rolündeki kullanıcılar personel yönetimi yapamaz."))
+                    .build()
+            );
+        }
+    }
+
     private PersonnelResponse toResponse(Personnel p) {
+        boolean hasAccount = p.getUser() != null;
+        String username = p.getUser() != null ? p.getUser().getUsername() : null;
         return new PersonnelResponse(
                 p.getId(),
                 p.getFullName(),
                 p.getDepartment(),
                 p.getTitle(),
-                p.getEmail()
+                p.getEmail(),
+                hasAccount,
+                username
         );
     }
 

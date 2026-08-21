@@ -14,5 +14,9 @@ public record PersonnelRequest(
 
     @NotBlank(message = "E-posta boş olamaz")
     @Email(message = "Geçerli bir e-posta adresi giriniz")
-    String email
+    String email,
+
+    Boolean createAccount,
+    String username,
+    String password
 ) {}
