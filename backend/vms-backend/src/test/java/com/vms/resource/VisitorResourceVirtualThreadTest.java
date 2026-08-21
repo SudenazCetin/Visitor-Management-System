@@ -18,7 +18,7 @@ public class VisitorResourceVirtualThreadTest {
 
     @Test
     void testCheckOutEndpointHasRunOnVirtualThreadAnnotation() throws NoSuchMethodException {
-        Method checkOutMethod = VisitorResource.class.getMethod("checkOut", Long.class);
+        Method checkOutMethod = VisitorResource.class.getMethod("checkOut", jakarta.ws.rs.core.SecurityContext.class, Long.class);
         Assertions.assertTrue(
             checkOutMethod.isAnnotationPresent(RunOnVirtualThread.class),
             "@RunOnVirtualThread annotation must be present on VisitorResource.checkOut(Long id)"
@@ -42,7 +42,8 @@ public class VisitorResourceVirtualThreadTest {
         };
 
         PersonnelRepository stubPersonnelRepo = new PersonnelRepository();
-        VisitorService service = new VisitorService(stubVisitorRepo, stubPersonnelRepo);
+        com.vms.service.NotificationService stubNotificationService = new com.vms.service.NotificationService(null, null);
+        VisitorService service = new VisitorService(stubVisitorRepo, stubPersonnelRepo, stubNotificationService);
 
         AtomicBoolean isVirtualThreadExecuted = new AtomicBoolean(false);
 

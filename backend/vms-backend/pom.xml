@@ -79,6 +79,12 @@
             <artifactId>quarkus-arc</artifactId>
         </dependency>
 
+        <!-- Quarkus WebSockets (ServerEndpoint support for real-time notifications) -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-websockets</artifactId>
+        </dependency>
+
         <!-- Testing Dependencies -->
         <dependency>
             <groupId>io.quarkus</groupId>
