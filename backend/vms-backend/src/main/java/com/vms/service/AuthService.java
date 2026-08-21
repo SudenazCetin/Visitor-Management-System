@@ -6,6 +6,9 @@ import com.vms.dto.auth.RegisterRequest;
 import com.vms.entity.Role;
 import com.vms.entity.User;
 import com.vms.repository.UserRepository;
+import com.vms.entity.Personnel;
+import com.vms.repository.PersonnelRepository;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.quarkus.elytron.security.common.BcryptUtil;
 import io.smallrye.jwt.build.Jwt;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -21,10 +24,16 @@ import java.util.Set;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final PersonnelRepository personnelRepository;
+    private final String configuredAdminCode;
 
     @Inject
-    public AuthService(UserRepository userRepository) {
+    public AuthService(UserRepository userRepository,
+                       PersonnelRepository personnelRepository,
+                       @ConfigProperty(name = "vms.registration.admin-code") String configuredAdminCode) {
         this.userRepository = userRepository;
+        this.personnelRepository = personnelRepository;
+        this.configuredAdminCode = configuredAdminCode;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -68,7 +77,23 @@ public class AuthService {
 
     @Transactional
     public void register(RegisterRequest request) {
-        if (userRepository.existsByUsername(request.username())) {
+        if (request.username() == null || request.username().isBlank()) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("message", "Kullanıcı adı boş olamaz."))
+                    .build()
+            );
+        }
+
+        if (request.password() == null || request.password().isBlank()) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("message", "Şifre boş olamaz."))
+                    .build()
+            );
+        }
+
+        if (userRepository.existsByUsername(request.username().trim())) {
             throw new WebApplicationException(
                 Response.status(Response.Status.CONFLICT)
                     .entity(Map.of("message", "Bu kullanıcı adı zaten kullanılıyor."))
@@ -76,9 +101,54 @@ public class AuthService {
             );
         }
 
-        String hashedPassword = BcryptUtil.bcryptHash(request.password());
-        // Public registration users are ALWAYS created as RECEPTIONIST role
-        User newUser = new User(request.username(), hashedPassword, Role.RECEPTIONIST);
-        userRepository.persist(newUser);
+        String regType = request.registrationType() != null ? request.registrationType().trim().toUpperCase() : "PERSONNEL";
+
+        // Security check: RECEPTIONIST role can NEVER be registered via public endpoint
+        if ("RECEPTIONIST".equals(regType)) {
+            throw new WebApplicationException(
+                Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("message", "Resepsiyonist hesapları kamuya açık kayıt ekranı üzerinden oluşturulamaz."))
+                    .build()
+            );
+        }
+
+        String hashedPassword = BcryptUtil.bcryptHash(request.password().trim());
+
+        if ("ADMIN".equals(regType)) {
+            String code = request.adminRegistrationCode();
+            if (code == null || !code.trim().equals(configuredAdminCode.trim())) {
+                throw new WebApplicationException(
+                    Response.status(Response.Status.BAD_REQUEST)
+                        .entity(Map.of("message", "Geçersiz yönetim kayıt kodu."))
+                        .build()
+                );
+            }
+
+            User newAdminUser = new User(request.username().trim(), hashedPassword, Role.ADMIN);
+            userRepository.persist(newAdminUser);
+        } else {
+            // Default to PERSONNEL role
+            String email = request.email() != null && !request.email().isBlank()
+                    ? request.email().trim()
+                    : request.username().trim() + "@vms.com";
+
+            if (personnelRepository.existsByEmail(email)) {
+                throw new WebApplicationException(
+                    Response.status(Response.Status.CONFLICT)
+                        .entity(Map.of("message", "Bu e-posta adresi zaten kullanılıyor."))
+                        .build()
+                );
+            }
+
+            User newPersonnelUser = new User(request.username().trim(), hashedPassword, Role.PERSONNEL);
+            userRepository.persist(newPersonnelUser);
+
+            String fullName = request.fullName() != null && !request.fullName().isBlank()
+                    ? request.fullName().trim()
+                    : request.username().trim();
+
+            Personnel personnel = new Personnel(fullName, "Genel", "Personel", email, newPersonnelUser);
+            personnelRepository.persist(personnel);
+        }
     }
 }
